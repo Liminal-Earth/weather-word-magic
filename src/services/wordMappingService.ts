@@ -1,21 +1,72 @@
 
 import { WeatherData } from "./weatherService";
 
-// This is a simplified version - in a real app, we'd use a much larger dictionary
+// Expanded word dictionary with categorized weather-related words
 const wordDictionary = [
+  // Calm/Pleasant
   "serenity", "zephyr", "cascade", "luminous", "verdant", "ethereal", "radiance", "tranquil", "whisper", "gentle",
+  "balmy", "idyllic", "pleasant", "mellow", "soothing", "halcyon", "placid", "blissful", "tender", "soft",
+  "harmonious", "peaceful", "quiescent", "stillness", "reposeful", "amicable", "benign", "clement", "congenial", "genial",
+  
+  // Stormy/Intense
   "tempest", "torrent", "deluge", "cyclone", "maelstrom", "turbulent", "tumultuous", "typhoon", "whirlwind", "blizzard",
+  "squall", "gale", "hurricane", "monsoon", "downpour", "cloudburst", "thunderous", "vortex", "furious", "fierce",
+  "forceful", "violent", "savage", "wrathful", "fervent", "cataclysmic", "convulsive", "frenzied", "impetuous", "raging",
+  
+  // Cold/Wintry
   "crystalline", "glacial", "pristine", "powdery", "frosty", "icicle", "shimmering", "blanket", "alpine", "crisp",
+  "wintry", "arctic", "chilly", "frigid", "gelid", "hyperborean", "nipping", "polar", "rimy", "shivery",
+  "snowy", "wintry", "boreal", "brumal", "hibernal", "septentrional", "iceblink", "frozen", "hoarfrost", "glaze",
+  
+  // Clear/Blue Sky
   "azure", "cerulean", "sapphire", "expansive", "boundless", "infinite", "celestial", "cosmic", "heavenly", "zenith",
+  "empyrean", "firmament", "stratospheric", "clarity", "pristine", "lucidity", "pellucid", "limpid", "translucent", "unclouded",
+  "diaphanous", "crystalline", "perspicuous", "refulgent", "lambent", "luminescent", "effulgent", "resplendent", "splendid", "radiant",
+  
+  // Misty/Foggy
   "misty", "nebulous", "obscured", "veiled", "foggy", "shrouded", "enigmatic", "mysterious", "ghostly", "spectral",
+  "hazy", "smoky", "vaporous", "opaque", "brumous", "cloudy", "murky", "nebulosity", "obfuscated", "occluded",
+  "indistinct", "shadowy", "wraithlike", "phantasmal", "phantom", "mizzled", "fogbound", "nimbused", "beclouded", "misted",
+  
+  // Hot/Dry
   "scorching", "blazing", "searing", "sweltering", "torrid", "arid", "parched", "blistering", "fiery", "intense",
+  "sultry", "ardent", "fervid", "igneous", "incandescent", "inflammatory", "infernal", "roasting", "scalding", "stifling",
+  "tropical", "equatorial", "calescent", "calorific", "desert", "heated", "fevered", "roasting", "summery", "broiling",
+  
+  // Mild/Comfortable
   "balmy", "tepid", "mild", "pleasant", "comfortable", "genial", "benign", "favorable", "idyllic", "perfect",
+  "clement", "temperate", "moderate", "warm", "fair", "agreeable", "amenable", "delightful", "dulcet", "gentle",
+  "gracious", "cordial", "affable", "amiable", "benevolent", "euphoric", "pleasurable", "satisfying", "welcoming", "comforting",
+  
+  // Sharp Cold
   "biting", "bitter", "brisk", "chilling", "nippy", "piercing", "raw", "frigid", "arctic", "gelid",
+  "cutting", "keen", "incisive", "stinging", "severe", "numbing", "biting", "penetrating", "wintry", "icy",
+  "frosty", "crispy", "piquant", "sharp", "acrid", "acute", "chill", "algid", "freezing", "nipping",
+  
+  // Humid/Damp
   "damp", "dewy", "moist", "muggy", "humid", "clammy", "sticky", "sultry", "steamy", "tropical",
+  "soggy", "saturated", "sodden", "soaked", "drenched", "waterlogged", "oozy", "juicy", "slushy", "squelchy",
+  "tacky", "viscid", "viscous", "watery", "wet", "slimy", "sopping", "swampy", "boggy", "marshy",
+  
+  // Windy
   "gusty", "blustery", "drafty", "squally", "whistling", "howling", "roaring", "rushing", "swirling", "eddying",
+  "airy", "breezy", "gale-swept", "tempestuous", "ventilated", "windswept", "windward", "blowy", "windy", "airy",
+  "wafting", "fluttering", "billowy", "buffeting", "scudding", "swooping", "careening", "blasting", "blaring", "booming",
+  
+  // Bright/Sunny
   "amber", "golden", "resplendent", "brilliant", "dazzling", "glittering", "shining", "glowing", "vibrant", "vivid",
+  "bright", "sunny", "sunlit", "glittery", "gleaming", "lustrous", "sparkling", "glistening", "effulgent", "fulgent",
+  "incandescent", "lambent", "lucent", "luminous", "radiant", "refulgent", "splendid", "beaming", "blazing", "flaming",
+  
+  // Gloomy/Dark
   "somber", "gloomy", "mournful", "melancholy", "dreary", "dismal", "bleak", "depressing", "oppressive", "foreboding",
-  "refreshing", "invigorating", "revitalizing", "rejuvenating", "energizing", "stimulating", "exhilarating", "bracing", "enlivening", "reviving"
+  "ominous", "menacing", "threatening", "brooding", "cheerless", "dark", "dour", "dusky", "grim", "lugubrious",
+  "morbid", "morose", "murky", "overcast", "saturnine", "sullen", "doleful", "funereal", "melancholic", "pessimistic",
+  
+  // Fresh/Invigorating
+  "refreshing", "invigorating", "revitalizing", "rejuvenating", "energizing", "stimulating", "exhilarating", "bracing", "enlivening", "reviving",
+  "animating", "awakening", "quickening", "restorative", "reinvigorating", "renewing", "resuscitating", "vitalizing", "enheartening", "heartening",
+  "inspiring", "rousing", "stirring", "vivifying", "bouncy", "buoyant", "chipper", "dynamic", "electrifying", "fresh"
 ];
 
 // Factor weights determine how much each weather parameter influences the word selection

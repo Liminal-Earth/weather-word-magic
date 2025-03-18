@@ -51,25 +51,50 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
           {factorContributions && chartData.length > 0 && (
             <div className="mt-6">
               <h3 className="text-sm font-medium text-gray-500 mb-2">Word Influence Factors:</h3>
-              <div className="h-[120px] w-full">
+              <div className="h-[140px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <XAxis dataKey="name" />
+                  <BarChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                    <XAxis dataKey="name" fontSize={11} tickMargin={5} />
                     <Tooltip 
                       formatter={(value) => [`${value}%`, 'Influence']}
                       contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)' }}
                     />
-                    <Bar dataKey="value" fill="#82ca9d" radius={[4, 4, 0, 0]} />
+                    <Bar 
+                      dataKey="value" 
+                      fill="#82ca9d" 
+                      radius={[4, 4, 0, 0]} 
+                      name="Influence" 
+                      label={{ position: 'top', fontSize: 11, fill: '#666', formatter: (value) => `${value}%` }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-gray-500">
-                {chartData.map(item => (
-                  <div key={item.name} className="flex justify-between">
-                    <span>{item.name}:</span>
-                    <span className="font-medium">{item.value}%</span>
-                  </div>
-                ))}
+              <div className="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-500 bg-gray-50 p-3 rounded-md">
+                <h4 className="col-span-2 font-medium text-gray-600 mb-1">Weather Conditions:</h4>
+                <div className="flex justify-between">
+                  <span>Temperature:</span>
+                  <span className="font-medium">{weatherData.temperature}°F</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Humidity:</span>
+                  <span className="font-medium">{weatherData.humidity}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Wind:</span>
+                  <span className="font-medium">{weatherData.windSpeed} mph</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Sky:</span>
+                  <span className="font-medium">{weatherData.condition}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Pressure:</span>
+                  <span className="font-medium">{weatherData.pressure} hPa</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Time:</span>
+                  <span className="font-medium">{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                </div>
               </div>
             </div>
           )}

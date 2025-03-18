@@ -1,84 +1,70 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import LocationInput from "@/components/LocationInput";
 import WeatherWord from "@/components/WeatherWord";
 import WeatherDetails from "@/components/WeatherDetails";
 import Footer from "@/components/Footer";
 import { WeatherData, getWeatherByZipcode, getWeatherByGeolocation, getBackgroundClass } from "@/services/weatherService";
-import { generateWeatherWord, hasWeatherChangedSignificantly } from "@/services/wordMappingService";
+import { generateWeatherWord } from "@/services/wordMappingService";
 import { CloudSun } from "lucide-react";
-
-const POLL_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
 
 const Index = () => {
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [weatherWord, setWeatherWord] = useState<string>("");
   const [factorContributions, setFactorContributions] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState<boolean>(false);
-  const [lastLocation, setLastLocation] = useState<{type: "zip" | "geo", value: string | {lat: number, lon: number}} | null>(null);
   const { toast } = useToast();
 
-  const fetchWeatherData = useCallback(async () => {
-    if (!lastLocation) return;
-    
+  const fetchWeatherData = useCallback(async (
+    locationType: "zip" | "geo", 
+    locationValue: string | {lat: number, lon: number}
+  ) => {
     setLoading(true);
     try {
       let newWeatherData: WeatherData | null = null;
       
-      if (lastLocation.type === "zip") {
-        newWeatherData = await getWeatherByZipcode(lastLocation.value as string);
-      } else if (lastLocation.type === "geo") {
-        const { lat, lon } = lastLocation.value as { lat: number, lon: number };
+      if (locationType === "zip") {
+        newWeatherData = await getWeatherByZipcode(locationValue as string);
+      } else if (locationType === "geo") {
+        const { lat, lon } = locationValue as { lat: number, lon: number };
         newWeatherData = await getWeatherByGeolocation(lat, lon);
       }
       
       if (newWeatherData) {
-        // Check if weather has changed significantly
-        if (!weatherData || hasWeatherChangedSignificantly(weatherData, newWeatherData)) {
-          setWeatherData(newWeatherData);
-          const result = generateWeatherWord(newWeatherData);
-          setWeatherWord(result.word);
-          setFactorContributions(result.factorContributions);
-          
-          if (weatherData) {
-            toast({
-              title: "Weather Update",
-              description: `Your weather word has changed to "${result.word}"`,
-            });
-          }
-        } else {
-          setWeatherData(newWeatherData); // Update timestamps but don't change the word
+        setWeatherData(newWeatherData);
+        const result = generateWeatherWord(newWeatherData);
+        setWeatherWord(result.word);
+        setFactorContributions(result.factorContributions);
+        
+        if (weatherData) {
+          toast({
+            title: "Weather Updated",
+            description: `Your weather word is now "${result.word}"`,
+          });
         }
       }
     } catch (error) {
       console.error("Error fetching weather:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch weather data. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
-  }, [lastLocation, weatherData, toast]);
+  }, [weatherData, toast]);
 
   // Handle zipcode submission
   const handleZipcodeSubmit = (zipcode: string) => {
-    setLastLocation({ type: "zip", value: zipcode });
+    fetchWeatherData("zip", zipcode);
   };
 
   // Handle geolocation
   const handleGeolocation = (lat: number, lon: number) => {
-    setLastLocation({ type: "geo", value: { lat, lon } });
+    fetchWeatherData("geo", { lat, lon });
   };
-
-  // Initial fetch and setup polling
-  useEffect(() => {
-    if (lastLocation) {
-      fetchWeatherData();
-      
-      // Set up polling interval
-      const intervalId = setInterval(fetchWeatherData, POLL_INTERVAL);
-      
-      return () => clearInterval(intervalId);
-    }
-  }, [lastLocation, fetchWeatherData]);
 
   // Determine background class based on weather condition
   const backgroundClass = weatherData 
