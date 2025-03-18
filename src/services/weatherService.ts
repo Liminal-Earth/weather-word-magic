@@ -1,4 +1,3 @@
-
 import { toast } from "@/components/ui/use-toast";
 
 export interface WeatherData {
@@ -16,12 +15,17 @@ export interface WeatherData {
   timestamp: number;
 }
 
-// Fetch weather data from National Weather Service API by coordinates
+function formatCoordinate(coordinate: number): string {
+  return coordinate.toString().replace(/\.?0+$/, '');
+}
+
 export async function getWeatherByGeolocation(lat: number, lon: number): Promise<WeatherData | null> {
   try {
-    // First, get the nearest station point URL
+    const formattedLat = formatCoordinate(lat);
+    const formattedLon = formatCoordinate(lon);
+    
     const pointsResponse = await fetch(
-      `https://api.weather.gov/points/${lat},${lon}`
+      `https://api.weather.gov/points/${formattedLat},${formattedLon}`
     );
 
     if (!pointsResponse.ok) {
@@ -33,7 +37,6 @@ export async function getWeatherByGeolocation(lat: number, lon: number): Promise
     const forecastUrl = pointsData.properties.forecast;
     const gridpointUrl = pointsData.properties.forecastGridData;
     
-    // Get the forecast for the current conditions
     const forecastResponse = await fetch(forecastUrl);
     if (!forecastResponse.ok) {
       const errorData = await forecastResponse.json();
@@ -43,7 +46,6 @@ export async function getWeatherByGeolocation(lat: number, lon: number): Promise
     const forecastData = await forecastResponse.json();
     const currentPeriod = forecastData.properties.periods[0];
     
-    // Get detailed grid data for additional metrics
     const gridResponse = await fetch(gridpointUrl);
     if (!gridResponse.ok) {
       const errorData = await gridResponse.json();
@@ -52,7 +54,6 @@ export async function getWeatherByGeolocation(lat: number, lon: number): Promise
     
     const gridData = await gridResponse.json();
     
-    // Extract and format the weather data
     const temperature = Math.round(currentPeriod.temperature);
     const windSpeed = parseInt(currentPeriod.windSpeed.replace(/[^0-9]/g, ''));
     const humidity = gridData.properties.relativeHumidity.values[0]?.value || 0;
@@ -88,11 +89,8 @@ export async function getWeatherByGeolocation(lat: number, lon: number): Promise
   }
 }
 
-// Instead of using the Census geocoding API, we'll use a simpler approach
-// For zipcodes, we'll use nominatim.openstreetmap.org which supports CORS
 export async function getWeatherByZipcode(zipcode: string, country: string = "us"): Promise<WeatherData | null> {
   try {
-    // Use OpenStreetMap's Nominatim service for geocoding the zipcode
     const geocodeResponse = await fetch(
       `https://nominatim.openstreetmap.org/search?postalcode=${zipcode}&country=${country}&format=json`
     );
@@ -111,7 +109,6 @@ export async function getWeatherByZipcode(zipcode: string, country: string = "us
     const lat = parseFloat(location.lat);
     const lon = parseFloat(location.lon);
 
-    // Now use the coordinates to get the weather
     return getWeatherByGeolocation(lat, lon);
   } catch (error) {
     if (error instanceof Error) {
@@ -127,10 +124,8 @@ export async function getWeatherByZipcode(zipcode: string, country: string = "us
 }
 
 function mapNWSIconToCode(iconUrl: string): string {
-  // Extract the icon name from the URL
   const iconFile = iconUrl.split('/').pop() || '';
   
-  // Map NWS icons to codes similar to what we used with OpenWeatherMap
   if (iconFile.includes('skc') || iconFile.includes('few')) return '01d';
   if (iconFile.includes('sct')) return '02d';
   if (iconFile.includes('bkn')) return '03d';
@@ -144,8 +139,6 @@ function mapNWSIconToCode(iconUrl: string): string {
 }
 
 export function getWeatherIconUrl(iconCode: string, size: "2x" | "4x" = "4x"): string {
-  // Since we're not using OpenWeatherMap, let's use the NWS icons
-  // But we'll continue to use the same format for compatibility
   return `https://openweathermap.org/img/wn/${iconCode}@${size}.png`;
 }
 

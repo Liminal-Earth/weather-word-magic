@@ -37,7 +37,9 @@ const LocationInput = ({ onLocationSubmit, onGeolocation, isLoading }: LocationI
       
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const { latitude, longitude } = position.coords;
+          // Clean up coordinates by using toFixed(4) to avoid trailing zeros issues
+          const latitude = parseFloat(position.coords.latitude.toFixed(4));
+          const longitude = parseFloat(position.coords.longitude.toFixed(4));
           onGeolocation(latitude, longitude);
         },
         (error) => {
