@@ -10,18 +10,32 @@ import {
 } from "./weatherMappingUtils";
 import { getReliableWordsList } from "./definitionService";
 
+// Cache the last word result to avoid unnecessary regeneration and API calls
+let lastWeatherData: WeatherData | null = null;
+let lastWordResult: { word: string, factorContributions: Record<string, number> } | null = null;
+
 // Generate a word based on weather parameters with much finer granularity
 export function generateWeatherWord(weatherData: WeatherData): { 
   word: string, 
   factorContributions: Record<string, number> 
 } {
+  // Check if weather data is the same as the last request
+  if (lastWeatherData && lastWordResult && 
+      !hasWeatherChangedSignificantly(lastWeatherData, weatherData)) {
+    console.log("Using cached word result - weather hasn't changed significantly");
+    return lastWordResult;
+  }
+  
   // Get the dictionary of words (now with verified definitions)
   const wordDictionary = getDictionary();
   
   if (!weatherData || wordDictionary.length === 0) {
     // If no dictionary is available yet, use our reliable words list
     const reliableWords = getReliableWordsList();
-    return { word: reliableWords[0], factorContributions: {} };
+    const result = { word: reliableWords[0], factorContributions: {} };
+    lastWeatherData = weatherData;
+    lastWordResult = result;
+    return result;
   }
 
   // Get normalized weather values (0-1 scale)
@@ -59,10 +73,16 @@ export function generateWeatherWord(weatherData: WeatherData): {
   const index = Math.floor(normalizedScore * (wordDictionary.length - 1));
   const finalIndex = Math.max(0, Math.min(wordDictionary.length - 1, index));
   
-  return { 
+  const result = { 
     word: wordDictionary[finalIndex] || getReliableWordsList()[0],
     factorContributions
   };
+  
+  // Cache the result and weather data
+  lastWeatherData = weatherData;
+  lastWordResult = result;
+  
+  return result;
 }
 
 // Re-export the hasWeatherChangedSignificantly function

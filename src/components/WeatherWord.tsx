@@ -118,9 +118,9 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
           {factorContributions && chartData.length > 0 && (
             <div className="mt-6">
               <h3 className="text-sm font-medium text-gray-500 mb-2">Word Influence Factors:</h3>
-              <div className="h-[140px] w-full">
+              <div className="h-[200px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                  <BarChart data={chartData} margin={{ top: 20, right: 10, left: 10, bottom: 5 }}>
                     <XAxis dataKey="name" fontSize={11} tickMargin={5} />
                     <Tooltip 
                       formatter={(value) => [`${value}%`, 'Influence']}
