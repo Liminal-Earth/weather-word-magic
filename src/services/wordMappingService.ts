@@ -51,25 +51,10 @@ export function generateWeatherWord(weatherData: WeatherData): {
   // Ensure the composite score is between 0 and 1
   const normalizedScore = Math.max(0, Math.min(1, compositeScore));
   
-  // We'll use a more sophisticated algorithm to select a word
-  // Instead of just selecting by index, we'll use the normalized score to select
-  // words from different regions of the dictionary, with some randomness
-  
-  // First, determine a base index
-  const baseIndex = Math.floor(normalizedScore * (wordDictionary.length - 1));
-  
-  // Add some controlled randomness - select from a range near the base index
-  // The range is narrower for extreme values (very high or very low scores)
-  // and wider for middle range scores
-  const variabilityFactor = 1 - Math.abs(normalizedScore - 0.5) * 2; // 0 at extremes, 1 in middle
-  const range = Math.floor(wordDictionary.length * 0.1 * variabilityFactor); // Max 10% of dictionary size
-  
-  // Generate a random offset within our range
-  const offset = Math.floor(Math.random() * (range * 2 + 1)) - range;
-  
-  // Calculate final index with bounds checking
-  let finalIndex = baseIndex + offset;
-  finalIndex = Math.max(0, Math.min(wordDictionary.length - 1, finalIndex));
+  // Use the normalized score to directly select a word from the dictionary
+  // This makes the selection deterministic based on weather conditions
+  const index = Math.floor(normalizedScore * (wordDictionary.length - 1));
+  const finalIndex = Math.max(0, Math.min(wordDictionary.length - 1, index));
   
   return { 
     word: wordDictionary[finalIndex] || "enigmatic",
