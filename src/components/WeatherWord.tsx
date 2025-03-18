@@ -24,9 +24,9 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
   
   if (!weatherData) return null;
 
-  // Format the data for the chart
+  // Format the data for the chart - multiply by 100 to show as percentages
   const chartData = factorContributions ? Object.entries(factorContributions).map(([name, value]) => ({
-    name,
+    name: getFactorDisplayName(name),
     value: Math.round(value * 100)
   })).sort((a, b) => b.value - a.value) : [];
   
@@ -78,5 +78,19 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
     </Card>
   );
 };
+
+// Helper function to get user-friendly names for the factors
+function getFactorDisplayName(key: string): string {
+  const nameMap: Record<string, string> = {
+    temperature: "Temperature",
+    humidity: "Humidity",
+    wind: "Wind",
+    sky: "Sky Condition",
+    time: "Time of Day",
+    pressure: "Pressure"
+  };
+  
+  return nameMap[key] || key;
+}
 
 export default WeatherWord;

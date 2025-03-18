@@ -55,7 +55,8 @@ function mapConditionToValue(condition: string): number {
     "Partly Sunny": 0.75,
     "Mostly Sunny": 0.85,
     "Fair": 0.8,
-    "Few Clouds": 0.7
+    "Few Clouds": 0.7,
+    "Chance Light Rain": 0.3
   };
 
   // Try to match the condition text with our map
@@ -80,12 +81,12 @@ export function generateWeatherWord(weatherData: WeatherData): { word: string, f
   if (!weatherData) return { word: "unknown", factorContributions: {} };
 
   // Normalize values to range 0-1
-  const temperatureValue = (weatherData.temperature - 0) / 100; // Assuming range 0-100°F
+  const temperatureValue = Math.max(0, Math.min(1, (weatherData.temperature - 0) / 100)); // Assuming range 0-100°F
   const humidityValue = weatherData.humidity / 100;
   const windSpeedValue = Math.min(weatherData.windSpeed / 30, 1); // Normalize wind 0-30 mph
   const conditionValue = mapConditionToValue(weatherData.condition);
   const timeValue = getTimeOfDayValue();
-  const pressureValue = (weatherData.pressure - 970) / 60; // Normalize pressure ~970-1030 hPa
+  const pressureValue = Math.max(0, Math.min(1, (weatherData.pressure - 970) / 60)); // Normalize pressure ~970-1030 hPa
 
   // Raw factor values (normalized between 0-1)
   const rawFactors = {
@@ -107,20 +108,29 @@ export function generateWeatherWord(weatherData: WeatherData): { word: string, f
     pressure: pressureValue * factorWeights.pressure
   };
 
-  // Calculate factor contributions as a percentage of the total
-  const totalWeight = Object.values(weightedFactors).reduce((sum, val) => sum + val, 0);
+  // Calculate total contribution (should be a positive value)
+  const totalContribution = Object.values(weightedFactors).reduce((sum, val) => sum + Math.abs(val), 0);
+  
+  // Calculate factor contributions as percentages (always positive values)
   const factorContributions = Object.entries(weightedFactors).reduce((obj, [key, value]) => {
-    obj[key] = value / totalWeight;
+    // Ensure we're using absolute values and proper percentages
+    obj[key] = totalContribution > 0 ? Math.round((Math.abs(value) / totalContribution) * 100) / 100 : 0;
     return obj;
   }, {} as Record<string, number>);
 
-  // Calculate a composite score
-  const compositeScore = totalWeight;
-
-  // Use the composite score to select a word from the dictionary
-  const index = Math.floor(compositeScore * (wordDictionary.length - 1));
+  // Calculate a composite score for word selection (always between 0 and 1)
+  const compositeScore = Object.values(weightedFactors).reduce((sum, val) => sum + val, 0) / 
+                        Object.values(factorWeights).reduce((sum, val) => sum + val, 0);
+  
+  // Ensure the composite score is between 0 and 1
+  const normalizedScore = Math.max(0, Math.min(1, compositeScore));
+  
+  // Use the normalized score to select a word from the dictionary
+  const index = Math.floor(normalizedScore * (wordDictionary.length - 1));
+  const safeIndex = Math.max(0, Math.min(wordDictionary.length - 1, index));
+  
   return { 
-    word: wordDictionary[index] || "enigmatic",
+    word: wordDictionary[safeIndex] || "enigmatic",
     factorContributions
   };
 }
