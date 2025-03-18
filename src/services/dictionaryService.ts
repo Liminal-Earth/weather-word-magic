@@ -1,3 +1,4 @@
+
 // Dictionary service responsible for loading and managing the word dictionary
 
 // Store the dictionary of words
@@ -23,6 +24,8 @@ export async function initializeDictionary(): Promise<string[]> {
       .filter(word => word.length > 3 && word.length < 12)
       // Filter out words that are likely not suitable (proper nouns, abbreviations, etc.)
       .filter(word => /^[a-z]+$/.test(word))
+      // Shuffle the array using Fisher-Yates algorithm to ensure diversity
+      .sort(() => Math.random() - 0.5)
       // Limit to a reasonable number that's still very large
       .slice(0, 15000);
     

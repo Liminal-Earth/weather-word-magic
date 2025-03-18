@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { WeatherData } from "@/services/weatherService";
@@ -93,7 +94,7 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
                       </div>
                     ) : (
                       <p className="text-sm text-gray-600">
-                        No definition available. Click the info icon to search.
+                        Click the info icon to fetch the definition.
                       </p>
                     )}
                   </div>

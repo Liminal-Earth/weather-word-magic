@@ -13,16 +13,19 @@ const definitionCache: Record<string, string | null> = {};
 export async function fetchWordDefinition(word: string): Promise<string | null> {
   // Check if we already have this definition cached
   if (definitionCache[word] !== undefined) {
+    console.log(`Using cached definition for "${word}"`);
     return definitionCache[word];
   }
 
   try {
+    console.log(`Fetching definition for "${word}"...`);
     // Fetch from Free Dictionary API
     const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
     
     if (!response.ok) {
       if (response.status === 404) {
         // Word not found in dictionary
+        console.log(`No definition found for "${word}"`);
         definitionCache[word] = null;
         return null;
       }
@@ -40,12 +43,14 @@ export async function fetchWordDefinition(word: string): Promise<string | null> 
           const definition = firstMeaning.definitions[0].definition;
           // Cache the definition for future requests
           definitionCache[word] = definition;
+          console.log(`Definition found for "${word}": ${definition}`);
           return definition;
         }
       }
     }
     
     // If we couldn't find a good definition format, cache as null
+    console.log(`Unexpected response format for "${word}"`);
     definitionCache[word] = null;
     return null;
   } catch (error) {
