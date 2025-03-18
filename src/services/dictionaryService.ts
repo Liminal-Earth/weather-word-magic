@@ -1,4 +1,3 @@
-
 // Dictionary service responsible for loading and managing the word dictionary
 import { getReliableWordsList } from './definitionService';
 
@@ -8,11 +7,19 @@ let wordDictionary: string[] = [];
 let verifiedWordDictionary: string[] = [];
 // Track if verification process is running
 let isVerifyingWords = false;
+// Flag to track if we've already initialized the dictionary
+let isDictionaryInitialized = false;
 
 // Function to initialize the dictionary with many words
 export async function initializeDictionary(): Promise<string[]> {
+  // If already initialized or in progress, don't start again
+  if (isDictionaryInitialized || isVerifyingWords) {
+    return verifiedWordDictionary.length > 0 ? verifiedWordDictionary : getReliableWordsList();
+  }
+  
   // Start with our reliable words to ensure we always have some good options
   verifiedWordDictionary = getReliableWordsList();
+  isDictionaryInitialized = true;
   
   try {
     // Fetch a large dictionary of English words from a public API
@@ -39,8 +46,10 @@ export async function initializeDictionary(): Promise<string[]> {
     
     console.log(`Dictionary initialized with ${wordDictionary.length} words`);
     
-    // Start verifying words in the background
-    verifyWordsWithDefinitions();
+    // Start verifying words in the background, but only if not already running
+    if (!isVerifyingWords) {
+      setTimeout(() => verifyWordsWithDefinitions(), 5000); // Delay verification to avoid immediate API calls
+    }
     
     return wordDictionary;
   } catch (error) {
@@ -94,7 +103,7 @@ async function verifyWordsWithDefinitions() {
       }
       
       // More substantial delay between requests to avoid API rate limits
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Increased delay to 1.5 seconds
     }
     
     processedCount += batch.length;
@@ -114,15 +123,21 @@ async function verifyWordsWithDefinitions() {
 
 // Get the current dictionary or initialize if empty
 export function getDictionary(): string[] {
-  if (wordDictionary.length === 0) {
-    // Start loading the dictionary immediately if it's not loaded yet
-    initializeDictionary();
-    return getReliableWordsList();
-  }
-  
   // Always use verified words when available
   if (verifiedWordDictionary.length > 0) {
     return verifiedWordDictionary;
+  }
+  
+  // If not initialized yet, start initialization process but return reliable words
+  if (!isDictionaryInitialized) {
+    // Don't call initializeDictionary() directly here to avoid repeating the initialization
+    // Just set the flag to initiate the process once
+    setTimeout(() => {
+      if (!isDictionaryInitialized) {
+        initializeDictionary();
+      }
+    }, 1000);
+    return getReliableWordsList();
   }
   
   // Fallback to reliable words if no verified words yet
@@ -171,5 +186,7 @@ function getFallbackDictionary(): string[] {
   ];
 }
 
-// Start loading the dictionary immediately
-initializeDictionary();
+// Start loading the dictionary but with a delay to avoid immediate API calls
+setTimeout(() => {
+  initializeDictionary();
+}, 2000);

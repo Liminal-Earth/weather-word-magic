@@ -33,7 +33,7 @@ export function generateWeatherWord(weatherData: WeatherData): {
     // If no dictionary is available yet, use our reliable words list
     const reliableWords = getReliableWordsList();
     const result = { word: reliableWords[0], factorContributions: {} };
-    lastWeatherData = weatherData;
+    lastWeatherData = { ...weatherData };
     lastWordResult = result;
     return result;
   }
@@ -78,9 +78,9 @@ export function generateWeatherWord(weatherData: WeatherData): {
     factorContributions
   };
   
-  // Cache the result and weather data
-  lastWeatherData = weatherData;
-  lastWordResult = result;
+  // Cache the result and weather data (make a copy to avoid reference issues)
+  lastWeatherData = { ...weatherData };
+  lastWordResult = { ...result };
   
   return result;
 }
