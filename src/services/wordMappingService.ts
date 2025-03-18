@@ -14,7 +14,7 @@ import { getReliableWordsList } from "./definitionService";
 let lastWeatherData: WeatherData | null = null;
 let lastGeneratedWord: { word: string, factorContributions: Record<string, number> } | null = null;
 
-// Generate a word based on weather parameters with increased sensitivity to small changes
+// Generate a word based on weather parameters with extreme sensitivity to changes
 export function generateWeatherWord(weatherData: WeatherData): { 
   word: string, 
   factorContributions: Record<string, number> 
@@ -33,7 +33,8 @@ export function generateWeatherWord(weatherData: WeatherData): {
     const randomIndex = Math.floor(Math.random() * reliableWords.length);
     const result = { 
       word: reliableWords[randomIndex], 
-      factorContributions: { temperature: 0.2, humidity: 0.2, wind: 0.2, sky: 0.2, time: 0.1, pressure: 0.1 } 
+      // Pressure removed from contributions
+      factorContributions: { temperature: 0.30, humidity: 0.20, wind: 0.25, sky: 0.20, time: 0.05 } 
     };
     
     // Store for future reference
@@ -43,17 +44,16 @@ export function generateWeatherWord(weatherData: WeatherData): {
     return result;
   }
 
-  // Get normalized weather values (0-1 scale)
+  // Get normalized weather values (0-1 scale) - pressure removed
   const rawFactors = normalizeWeatherValues(weatherData);
 
-  // Calculate weighted factor values
+  // Calculate weighted factor values - pressure removed
   const weightedFactors = {
     temperature: rawFactors.temperature * factorWeights.temperature,
     humidity: rawFactors.humidity * factorWeights.humidity,
     wind: rawFactors.wind * factorWeights.windSpeed,
     sky: rawFactors.sky * factorWeights.condition,
-    time: rawFactors.time * factorWeights.timeOfDay,
-    pressure: rawFactors.pressure * factorWeights.pressure
+    time: rawFactors.time * factorWeights.timeOfDay
   };
 
   // Calculate total contribution (should be a positive value)
@@ -66,35 +66,41 @@ export function generateWeatherWord(weatherData: WeatherData): {
     return obj;
   }, {} as Record<string, number>);
 
-  // Add a random seed based on the exact weather values to introduce more variety
-  // This will cause small differences in weather to potentially yield different words
-  const randomSeed = 
-    (weatherData.temperature * 0.01) + 
-    (weatherData.humidity * 0.005) + 
-    (weatherData.windSpeed * 0.02) + 
-    (weatherData.timestamp % 100) * 0.001;
+  // Enhanced randomization to make every degree, percentage and mph matter
+  // Use fractional parts of each weather metric to generate variety
+  const uniqueWeatherFingerprint = 
+    (weatherData.temperature) + 
+    (weatherData.humidity * 0.01) + 
+    (weatherData.windSpeed * 0.1);
   
-  // Calculate a composite score for word selection
+  // Create a pseudo-random value from the unique fingerprint
+  const hashValue = Math.sin(uniqueWeatherFingerprint) * 10000;
+  const randomOffset = (hashValue - Math.floor(hashValue)) * 0.2; // 0-0.2 range
+  
+  // Calculate composite score plus high-sensitivity randomization
   const compositeScore = (
     (Object.values(weightedFactors).reduce((sum, val) => sum + val, 0) / 
     Object.values(factorWeights).reduce((sum, val) => sum + val, 0))
-    + (randomSeed * 0.15)  // Add randomness factor (15% weight)
   );
   
-  // Ensure the composite score is between 0 and 1
-  const normalizedScore = Math.max(0, Math.min(1, compositeScore));
+  // Make sure small changes have big impacts on word selection
+  // Use modulo of exact values to create a unique signature
+  const microVariations = 
+    ((weatherData.temperature % 1) * 0.07) + 
+    ((weatherData.humidity % 1) * 0.05) + 
+    ((weatherData.windSpeed % 1) * 0.05);
   
-  // Add jitter to increase sensitivity to small weather changes
-  // Use exact temperature, humidity and wind values to create tiny variations
-  const jitterFactor = 
-    ((weatherData.temperature % 1) * 0.03) + 
-    ((weatherData.humidity % 1) * 0.02) + 
-    ((weatherData.windSpeed % 1) * 0.02);
+  // Add timestamp variation to ensure refreshes give different results
+  const timeVariation = ((Date.now() % 10000) / 10000) * 0.05;
   
-  const finalScore = Math.max(0, Math.min(1, normalizedScore + jitterFactor));
+  // Combine everything to create a final score
+  const finalScore = compositeScore + randomOffset + microVariations + timeVariation;
   
-  // Use the final score to select a word from the dictionary
-  const index = Math.floor(finalScore * (wordDictionary.length - 1));
+  // Normalize to ensure we stay within 0-1 range
+  const normalizedFinalScore = Math.max(0, Math.min(0.999, finalScore));
+  
+  // Use the highly sensitive final score to select a word
+  const index = Math.floor(normalizedFinalScore * wordDictionary.length);
   const finalIndex = Math.max(0, Math.min(wordDictionary.length - 1, index));
   
   const result = { 

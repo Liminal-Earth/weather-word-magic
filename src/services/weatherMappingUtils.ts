@@ -1,14 +1,12 @@
-
 import { WeatherData } from "./weatherService";
 
 // Factor weights determine how much each weather parameter influences the word selection
 export const factorWeights = {
-  temperature: 0.25,
-  humidity: 0.15,
-  windSpeed: 0.2,
-  condition: 0.25,
-  timeOfDay: 0.1,
-  pressure: 0.05
+  temperature: 0.30,
+  humidity: 0.20,
+  windSpeed: 0.25,
+  condition: 0.20,
+  timeOfDay: 0.05
 };
 
 // Enhanced mapping for weather conditions with much more granularity
@@ -101,19 +99,17 @@ export function normalizeWeatherValues(weatherData: WeatherData) {
   const windSpeedValue = Math.min(Math.pow(weatherData.windSpeed / 50, 0.7), 1); // Better curve for wind speeds
   const conditionValue = mapConditionToValue(weatherData.condition);
   const timeValue = getTimeOfDayValue();
-  const pressureValue = Math.max(0, Math.min(1, (weatherData.pressure - 970) / 60)); // Normalize pressure ~970-1030 hPa
 
   return {
     temperature: temperatureValue,
     humidity: humidityValue,
     wind: windSpeedValue,
     sky: conditionValue,
-    time: timeValue,
-    pressure: pressureValue
+    time: timeValue
   };
 }
 
-// Function to determine if weather has changed significantly - more sensitive to small changes
+// Function to determine if weather has changed significantly - extremely sensitive to small changes
 export function hasWeatherChangedSignificantly(
   oldData: WeatherData | null, 
   newData: WeatherData
@@ -123,19 +119,17 @@ export function hasWeatherChangedSignificantly(
   // Check if location has changed
   if (oldData.location !== newData.location) return true;
   
-  // Check if any time has passed (15 minutes) - reduced from 30 minutes
-  const timeDiff = Math.abs(newData.timestamp - oldData.timestamp);
-  if (timeDiff > 900) return true; // 15 minutes = 900 seconds
+  // Any change at all should generate a new word, so no time threshold
   
-  // Check for smaller changes in weather parameters - more sensitive thresholds
+  // Extremely sensitive thresholds for weather changes - any measurable difference matters
   const tempDiff = Math.abs(newData.temperature - oldData.temperature);
-  if (tempDiff >= 2) return true; // 2 degree temperature change (reduced from 5)
+  if (tempDiff >= 1) return true; // Just 1 degree temperature change
   
   const humidityDiff = Math.abs(newData.humidity - oldData.humidity);
-  if (humidityDiff >= 5) return true; // 5% humidity change (reduced from 15)
+  if (humidityDiff >= 1) return true; // Just 1% humidity change
   
   const windDiff = Math.abs(newData.windSpeed - oldData.windSpeed);
-  if (windDiff >= 3) return true; // 3 mph wind speed change (reduced from 10)
+  if (windDiff >= 1) return true; // Just 1 mph wind speed change
   
   const conditionChanged = newData.condition !== oldData.condition;
   if (conditionChanged) return true;

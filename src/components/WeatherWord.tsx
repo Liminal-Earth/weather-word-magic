@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { WeatherData } from "@/services/weatherService";
@@ -152,10 +153,6 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
                   <span className="font-medium">{weatherData.condition}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Pressure:</span>
-                  <span className="font-medium">{weatherData.pressure || 'N/A'} hPa</span>
-                </div>
-                <div className="flex justify-between">
                   <span>Time:</span>
                   <span className="font-medium">{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                 </div>
@@ -174,8 +171,7 @@ function getFactorDisplayName(key: string): string {
     humidity: "Humidity",
     wind: "Wind",
     sky: "Sky Condition",
-    time: "Time of Day",
-    pressure: "Pressure"
+    time: "Time of Day"
   };
   
   return nameMap[key] || key;
