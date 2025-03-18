@@ -1,5 +1,6 @@
 
 // Dictionary service responsible for loading and managing the word dictionary
+import { getReliableWordsList } from './definitionService';
 
 // Store the dictionary of words
 let wordDictionary: string[] = [];
@@ -10,6 +11,9 @@ let isVerifyingWords = false;
 
 // Function to initialize the dictionary with many words
 export async function initializeDictionary(): Promise<string[]> {
+  // Start with our reliable words to ensure we always have some good options
+  verifiedWordDictionary = getReliableWordsList();
+  
   try {
     // Fetch a large dictionary of English words from a public API
     const response = await fetch(
@@ -46,7 +50,7 @@ export async function initializeDictionary(): Promise<string[]> {
     console.log(`Using fallback dictionary with ${wordDictionary.length} words`);
     
     // Fallback dictionary already has verified words
-    verifiedWordDictionary = wordDictionary;
+    verifiedWordDictionary = [...verifiedWordDictionary, ...wordDictionary];
     
     return wordDictionary;
   }
@@ -54,7 +58,7 @@ export async function initializeDictionary(): Promise<string[]> {
 
 // Function to verify which words have definitions
 async function verifyWordsWithDefinitions() {
-  if (isVerifyingWords || verifiedWordDictionary.length > 0) return;
+  if (isVerifyingWords || verifiedWordDictionary.length > 100) return;
   
   isVerifyingWords = true;
   console.log("Starting to verify words with definitions...");
@@ -62,46 +66,49 @@ async function verifyWordsWithDefinitions() {
   // Import the definition service
   const { fetchWordDefinition } = await import("./definitionService");
   
-  // Use the pre-verified fallback dictionary initially
-  verifiedWordDictionary = getFallbackDictionary();
-  
   // Process words in batches to avoid overwhelming the API
-  const batchSize = 10;
+  const batchSize = 5;
   let processedCount = 0;
   
-  // Create a copy of the dictionary to work with
-  const wordsToVerify = [...wordDictionary].slice(0, 500); // Limit to 500 for practical reasons
+  // Create a copy of the dictionary to work with - use a smaller sample for verification
+  const wordsToVerify = [...wordDictionary].slice(0, 300); // Limit to 300 for practical reasons
   
   for (let i = 0; i < wordsToVerify.length; i += batchSize) {
+    if (verifiedWordDictionary.length >= 200) {
+      // We have enough verified words, stop processing
+      break;
+    }
+    
     const batch = wordsToVerify.slice(i, i + batchSize);
     
-    // Process each batch in parallel
-    const results = await Promise.all(
-      batch.map(async (word) => {
-        try {
-          const definition = await fetchWordDefinition(word);
-          return { word, hasDefinition: !!definition };
-        } catch (error) {
-          return { word, hasDefinition: false };
+    // Process each batch in sequence to be more gentle on the API
+    for (const word of batch) {
+      try {
+        const definition = await fetchWordDefinition(word);
+        if (definition) {
+          verifiedWordDictionary.push(word);
         }
-      })
-    );
-    
-    // Add words with definitions to our verified list
-    results.forEach(result => {
-      if (result.hasDefinition) {
-        verifiedWordDictionary.push(result.word);
+      } catch (error) {
+        // Skip words that cause errors
+        console.error(`Error verifying word "${word}":`, error);
       }
-    });
+      
+      // More substantial delay between requests to avoid API rate limits
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
     
     processedCount += batch.length;
     console.log(`Verified ${processedCount}/${wordsToVerify.length} words. Found ${verifiedWordDictionary.length} with definitions.`);
-    
-    // Small delay to avoid API rate limits
-    await new Promise(resolve => setTimeout(resolve, 1000));
   }
   
   console.log(`Word verification complete. ${verifiedWordDictionary.length} words have definitions.`);
+  
+  // If we couldn't verify many words, use the fallback dictionary
+  if (verifiedWordDictionary.length < 50) {
+    verifiedWordDictionary = [...verifiedWordDictionary, ...getFallbackDictionary()];
+    console.log(`Using fallback dictionary to supplement. Now have ${verifiedWordDictionary.length} words.`);
+  }
+  
   isVerifyingWords = false;
 }
 
@@ -110,15 +117,16 @@ export function getDictionary(): string[] {
   if (wordDictionary.length === 0) {
     // Start loading the dictionary immediately if it's not loaded yet
     initializeDictionary();
-    return getFallbackDictionary();
+    return getReliableWordsList();
   }
   
-  // Once we have verified words, use those instead
+  // Always use verified words when available
   if (verifiedWordDictionary.length > 0) {
     return verifiedWordDictionary;
   }
   
-  return wordDictionary;
+  // Fallback to reliable words if no verified words yet
+  return getReliableWordsList();
 }
 
 // Fallback dictionary with a selection of interesting words

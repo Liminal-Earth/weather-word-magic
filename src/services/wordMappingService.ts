@@ -8,6 +8,7 @@ import {
   normalizeWeatherValues,
   hasWeatherChangedSignificantly
 } from "./weatherMappingUtils";
+import { getReliableWordsList } from "./definitionService";
 
 // Generate a word based on weather parameters with much finer granularity
 export function generateWeatherWord(weatherData: WeatherData): { 
@@ -18,7 +19,9 @@ export function generateWeatherWord(weatherData: WeatherData): {
   const wordDictionary = getDictionary();
   
   if (!weatherData || wordDictionary.length === 0) {
-    return { word: "enigmatic", factorContributions: {} };
+    // If no dictionary is available yet, use our reliable words list
+    const reliableWords = getReliableWordsList();
+    return { word: reliableWords[0], factorContributions: {} };
   }
 
   // Get normalized weather values (0-1 scale)
@@ -57,7 +60,7 @@ export function generateWeatherWord(weatherData: WeatherData): {
   const finalIndex = Math.max(0, Math.min(wordDictionary.length - 1, index));
   
   return { 
-    word: wordDictionary[finalIndex] || "enigmatic",
+    word: wordDictionary[finalIndex] || getReliableWordsList()[0],
     factorContributions
   };
 }
