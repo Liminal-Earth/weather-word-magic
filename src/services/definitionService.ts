@@ -29,6 +29,9 @@ reliableWords.forEach(item => {
  * Fetch the definition of a word from a free public dictionary API
  * Uses Free Dictionary API: https://dictionaryapi.dev/
  * With fallback for network errors
+ * 
+ * IMPORTANT: This should ONLY be called when a user explicitly requests a definition,
+ * not for batch processing or background verification
  */
 export async function fetchWordDefinition(word: string): Promise<string | null> {
   // Check if we already have this definition cached
@@ -108,14 +111,6 @@ export async function fetchWordDefinition(word: string): Promise<string | null> 
     console.log(`Using default reliable word "${defaultWord.word}" instead of "${word}"`);
     return defaultWord.definition;
   }
-}
-
-/**
- * Check if a word has a definition (for verification purposes)
- */
-export async function hasDefinition(word: string): Promise<boolean> {
-  const definition = await fetchWordDefinition(word);
-  return definition !== null;
 }
 
 /**

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { WeatherData } from "@/services/weatherService";
@@ -29,9 +28,8 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
     return () => clearTimeout(timer);
   }, [word]);
   
-  // Automatically fetch definition when info button is clicked
   const handleFetchDefinition = async () => {
-    if (definition !== null) return; // Already have a definition (or confirmed none exists)
+    if (definition !== null) return;
     
     setLoadingDefinition(true);
     try {
@@ -47,7 +45,6 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
   
   if (!weatherData) return null;
 
-  // Format the data for the chart - multiply by 100 to show as percentages
   const chartData = factorContributions ? Object.entries(factorContributions).map(([name, value]) => ({
     name: getFactorDisplayName(name),
     value: Math.round(value * 100)
@@ -118,7 +115,7 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
           {factorContributions && chartData.length > 0 && (
             <div className="mt-6">
               <h3 className="text-sm font-medium text-gray-500 mb-2">Word Influence Factors:</h3>
-              <div className="h-[300px] w-full">
+              <div className="h-[350px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={{ top: 20, right: 10, left: 10, bottom: 5 }}>
                     <XAxis dataKey="name" fontSize={11} tickMargin={5} />
@@ -171,7 +168,6 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
   );
 };
 
-// Helper function to get user-friendly names for the factors
 function getFactorDisplayName(key: string): string {
   const nameMap: Record<string, string> = {
     temperature: "Temperature",

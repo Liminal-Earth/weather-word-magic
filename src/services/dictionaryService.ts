@@ -5,12 +5,12 @@ import { getReliableWordsList } from './definitionService';
 let wordDictionary: string[] = [];
 // Array of words with verified definitions
 let verifiedWordDictionary: string[] = [];
-// Track if verification process is running
-let isVerifyingWords = false;
-// Flag to track if we've already initialized the dictionary
+// Track if we've already initialized the dictionary
 let isDictionaryInitialized = false;
 // Flag to track if initialization has been requested
 let initializationRequested = false;
+// Flag to prevent multiple concurrent word verifications
+let isVerifyingWords = false;
 
 // Function to initialize the dictionary with many words
 export async function initializeDictionary(): Promise<string[]> {
@@ -53,11 +53,8 @@ export async function initializeDictionary(): Promise<string[]> {
     // Set the initialized flag
     isDictionaryInitialized = true;
     
-    // If we don't already have a good set of verified words, start the verification
-    // process, but only if not already running and if we really need more words
-    if (!isVerifyingWords && verifiedWordDictionary.length < 50) {
-      setTimeout(() => verifyWordsWithDefinitions(), 10000); // Longer delay to avoid immediate API calls
-    }
+    // We'll use just the reliable words list initially
+    // We will NOT automatically verify words - this will only happen when explicitly requested
     
     return wordDictionary;
   } catch (error) {
@@ -76,11 +73,11 @@ export async function initializeDictionary(): Promise<string[]> {
   }
 }
 
-// Function to verify which words have definitions
-async function verifyWordsWithDefinitions() {
+// Function to verify words with definitions - ONLY called when explicitly needed
+export async function verifyWordsWithDefinitions(count: number = 20): Promise<string[]> {
   // If already verifying or we have enough verified words, don't start
   if (isVerifyingWords || verifiedWordDictionary.length > 100) {
-    return;
+    return verifiedWordDictionary;
   }
   
   isVerifyingWords = true;
@@ -97,7 +94,7 @@ async function verifyWordsWithDefinitions() {
   const wordsToVerify = [...wordDictionary].slice(0, 150); // Limit to 150 for practical reasons
   
   for (let i = 0; i < wordsToVerify.length; i += batchSize) {
-    if (verifiedWordDictionary.length >= 100) {
+    if (verifiedWordDictionary.length >= count) {
       // We have enough verified words, stop processing
       break;
     }
@@ -127,12 +124,13 @@ async function verifyWordsWithDefinitions() {
   console.log(`Word verification complete. ${verifiedWordDictionary.length} words have definitions.`);
   
   // If we couldn't verify many words, use the fallback dictionary
-  if (verifiedWordDictionary.length < 50) {
+  if (verifiedWordDictionary.length < 20) {
     verifiedWordDictionary = [...verifiedWordDictionary, ...getFallbackDictionary()];
     console.log(`Using fallback dictionary to supplement. Now have ${verifiedWordDictionary.length} words.`);
   }
   
   isVerifyingWords = false;
+  return verifiedWordDictionary;
 }
 
 // Get the current dictionary or initialize if empty

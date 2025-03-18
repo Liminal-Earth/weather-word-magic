@@ -10,11 +10,20 @@ import {
 } from "./weatherMappingUtils";
 import { getReliableWordsList } from "./definitionService";
 
+// Previous weather data to avoid regenerating words for similar conditions
+let lastWeatherData: WeatherData | null = null;
+let lastGeneratedWord: { word: string, factorContributions: Record<string, number> } | null = null;
+
 // Generate a word based on weather parameters with much finer granularity
 export function generateWeatherWord(weatherData: WeatherData): { 
   word: string, 
   factorContributions: Record<string, number> 
 } {
+  // If we have a previously generated word and the weather hasn't changed significantly, return the same word
+  if (lastWeatherData && lastGeneratedWord && !hasWeatherChangedSignificantly(lastWeatherData, weatherData)) {
+    return lastGeneratedWord;
+  }
+  
   // Get the dictionary of words (now with verified definitions)
   const wordDictionary = getDictionary();
   
@@ -22,10 +31,16 @@ export function generateWeatherWord(weatherData: WeatherData): {
     // If no dictionary is available yet, use our reliable words list
     const reliableWords = getReliableWordsList();
     const randomIndex = Math.floor(Math.random() * reliableWords.length);
-    return { 
+    const result = { 
       word: reliableWords[randomIndex], 
       factorContributions: { temperature: 0.2, humidity: 0.2, wind: 0.2, sky: 0.2, time: 0.1, pressure: 0.1 } 
     };
+    
+    // Store for future reference
+    lastWeatherData = weatherData;
+    lastGeneratedWord = result;
+    
+    return result;
   }
 
   // Get normalized weather values (0-1 scale)
@@ -63,10 +78,14 @@ export function generateWeatherWord(weatherData: WeatherData): {
   const index = Math.floor(normalizedScore * (wordDictionary.length - 1));
   const finalIndex = Math.max(0, Math.min(wordDictionary.length - 1, index));
   
-  return { 
+  const result = { 
     word: wordDictionary[finalIndex] || getReliableWordsList()[0],
     factorContributions
   };
+  
+  // Store for future reference
+  lastWeatherData = weatherData;
+  lastGeneratedWord = result;
+  
+  return result;
 }
-
-// We no longer need to export hasWeatherChangedSignificantly since we're not using it anymore
