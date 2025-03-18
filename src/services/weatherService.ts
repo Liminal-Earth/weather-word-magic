@@ -2,7 +2,7 @@
 import { toast } from "@/components/ui/use-toast";
 
 // OpenWeatherMap API key - In production, store this in environment variables
-const API_KEY = "df032e80bc2bf4b7e6fa10fa04c6cb97"; // This is a free demo key with rate limiting
+const API_KEY = "1b5ee719a29a8a6ded653cd7ea0483c9"; // Updated API key
 
 export interface WeatherData {
   temperature: number;
