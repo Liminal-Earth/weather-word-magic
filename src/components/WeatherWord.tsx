@@ -1,8 +1,11 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { WeatherData } from "@/services/weatherService";
 import { BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { fetchWordDefinition } from "@/services/definitionService";
+import { Info, Loader2 } from "lucide-react";
 
 interface WeatherWordProps {
   word: string;
@@ -12,15 +15,33 @@ interface WeatherWordProps {
 
 const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProps) => {
   const [fadeIn, setFadeIn] = useState(false);
+  const [definition, setDefinition] = useState<string | null>(null);
+  const [loadingDefinition, setLoadingDefinition] = useState(false);
   
   useEffect(() => {
     setFadeIn(false);
+    setDefinition(null);
     const timer = setTimeout(() => {
       setFadeIn(true);
     }, 100);
     
     return () => clearTimeout(timer);
   }, [word]);
+  
+  const handleFetchDefinition = async () => {
+    if (definition !== null || loadingDefinition) return;
+    
+    setLoadingDefinition(true);
+    try {
+      const result = await fetchWordDefinition(word);
+      setDefinition(result);
+    } catch (error) {
+      console.error("Error fetching definition:", error);
+      setDefinition(null);
+    } finally {
+      setLoadingDefinition(false);
+    }
+  };
   
   if (!weatherData) return null;
 
@@ -40,9 +61,45 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
               fadeIn ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
-            <p className="font-serif text-5xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-gray-800 mb-2">
-              {word}
-            </p>
+            <div className="flex items-center justify-center gap-2">
+              <p className="font-serif text-5xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-gray-800 mb-2">
+                {word}
+              </p>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button 
+                    onClick={handleFetchDefinition} 
+                    variant="ghost" 
+                    size="icon" 
+                    className="rounded-full mt-1 h-8 w-8" 
+                    aria-label="Show definition"
+                  >
+                    {loadingDefinition ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Info className="h-4 w-4" />
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 text-left">
+                  <div className="space-y-2">
+                    <h3 className="font-medium">{word}</h3>
+                    {definition ? (
+                      <p className="text-sm text-gray-600">{definition}</p>
+                    ) : loadingDefinition ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Loading definition...</span>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-600">
+                        No definition available. Click the info icon to search.
+                      </p>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
           <p className="text-sm text-gray-500 mt-4">
             Based on conditions in {weatherData.location}
