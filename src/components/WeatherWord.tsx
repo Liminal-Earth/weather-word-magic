@@ -29,8 +29,9 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
     return () => clearTimeout(timer);
   }, [word]);
   
+  // Automatically fetch definition when info button is clicked
   const handleFetchDefinition = async () => {
-    if (definition !== null || loadingDefinition) return;
+    if (definition !== null) return; // Already have a definition (or confirmed none exists)
     
     setLoadingDefinition(true);
     try {
@@ -94,7 +95,7 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
                       </div>
                     ) : (
                       <p className="text-sm text-gray-600">
-                        Click the info icon to fetch the definition.
+                        No definition found. This might be a rare or specialized word.
                       </p>
                     )}
                   </div>
@@ -105,6 +106,14 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
           <p className="text-sm text-gray-500 mt-4">
             Based on conditions in {weatherData.location}
           </p>
+
+          <div className="mt-4 mb-6 px-4 py-3 bg-indigo-50 rounded-lg text-sm text-indigo-700 max-w-md mx-auto">
+            <p>
+              Your weather word is divined through a mystical algorithm that senses the atmosphere's mood. 
+              Temperature, wind, humidity, and celestial conditions are weighed and balanced to reveal 
+              the word that best captures this exact moment in your local weather.
+            </p>
+          </div>
 
           {factorContributions && chartData.length > 0 && (
             <div className="mt-6">
