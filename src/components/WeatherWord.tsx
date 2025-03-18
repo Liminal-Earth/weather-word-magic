@@ -118,7 +118,7 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
           {factorContributions && chartData.length > 0 && (
             <div className="mt-6">
               <h3 className="text-sm font-medium text-gray-500 mb-2">Word Influence Factors:</h3>
-              <div className="h-[200px] w-full">
+              <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={{ top: 20, right: 10, left: 10, bottom: 5 }}>
                     <XAxis dataKey="name" fontSize={11} tickMargin={5} />
@@ -156,7 +156,7 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
                 </div>
                 <div className="flex justify-between">
                   <span>Pressure:</span>
-                  <span className="font-medium">{weatherData.pressure} hPa</span>
+                  <span className="font-medium">{weatherData.pressure || 'N/A'} hPa</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Time:</span>

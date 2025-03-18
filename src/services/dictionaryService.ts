@@ -3,23 +3,27 @@ import { getReliableWordsList } from './definitionService';
 
 // Store the dictionary of words
 let wordDictionary: string[] = [];
-// Cache of words with verified definitions
+// Array of words with verified definitions
 let verifiedWordDictionary: string[] = [];
 // Track if verification process is running
 let isVerifyingWords = false;
 // Flag to track if we've already initialized the dictionary
 let isDictionaryInitialized = false;
+// Flag to track if initialization has been requested
+let initializationRequested = false;
 
 // Function to initialize the dictionary with many words
 export async function initializeDictionary(): Promise<string[]> {
   // If already initialized or in progress, don't start again
-  if (isDictionaryInitialized || isVerifyingWords) {
+  if (isDictionaryInitialized || initializationRequested) {
     return verifiedWordDictionary.length > 0 ? verifiedWordDictionary : getReliableWordsList();
   }
   
+  // Mark that initialization has been requested to prevent duplicate calls
+  initializationRequested = true;
+  
   // Start with our reliable words to ensure we always have some good options
   verifiedWordDictionary = getReliableWordsList();
-  isDictionaryInitialized = true;
   
   try {
     // Fetch a large dictionary of English words from a public API
@@ -46,9 +50,13 @@ export async function initializeDictionary(): Promise<string[]> {
     
     console.log(`Dictionary initialized with ${wordDictionary.length} words`);
     
-    // Start verifying words in the background, but only if not already running
-    if (!isVerifyingWords) {
-      setTimeout(() => verifyWordsWithDefinitions(), 5000); // Delay verification to avoid immediate API calls
+    // Set the initialized flag
+    isDictionaryInitialized = true;
+    
+    // If we don't already have a good set of verified words, start the verification
+    // process, but only if not already running and if we really need more words
+    if (!isVerifyingWords && verifiedWordDictionary.length < 50) {
+      setTimeout(() => verifyWordsWithDefinitions(), 10000); // Longer delay to avoid immediate API calls
     }
     
     return wordDictionary;
@@ -59,7 +67,10 @@ export async function initializeDictionary(): Promise<string[]> {
     console.log(`Using fallback dictionary with ${wordDictionary.length} words`);
     
     // Fallback dictionary already has verified words
-    verifiedWordDictionary = [...verifiedWordDictionary, ...wordDictionary];
+    verifiedWordDictionary = [...getReliableWordsList(), ...wordDictionary];
+    
+    // We're done initializing, even though it was with fallback data
+    isDictionaryInitialized = true;
     
     return wordDictionary;
   }
@@ -67,7 +78,10 @@ export async function initializeDictionary(): Promise<string[]> {
 
 // Function to verify which words have definitions
 async function verifyWordsWithDefinitions() {
-  if (isVerifyingWords || verifiedWordDictionary.length > 100) return;
+  // If already verifying or we have enough verified words, don't start
+  if (isVerifyingWords || verifiedWordDictionary.length > 100) {
+    return;
+  }
   
   isVerifyingWords = true;
   console.log("Starting to verify words with definitions...");
@@ -75,15 +89,15 @@ async function verifyWordsWithDefinitions() {
   // Import the definition service
   const { fetchWordDefinition } = await import("./definitionService");
   
-  // Process words in batches to avoid overwhelming the API
-  const batchSize = 5;
+  // Process words in smaller batches to avoid overwhelming the API
+  const batchSize = 3;
   let processedCount = 0;
   
   // Create a copy of the dictionary to work with - use a smaller sample for verification
-  const wordsToVerify = [...wordDictionary].slice(0, 300); // Limit to 300 for practical reasons
+  const wordsToVerify = [...wordDictionary].slice(0, 150); // Limit to 150 for practical reasons
   
   for (let i = 0; i < wordsToVerify.length; i += batchSize) {
-    if (verifiedWordDictionary.length >= 200) {
+    if (verifiedWordDictionary.length >= 100) {
       // We have enough verified words, stop processing
       break;
     }
@@ -102,8 +116,8 @@ async function verifyWordsWithDefinitions() {
         console.error(`Error verifying word "${word}":`, error);
       }
       
-      // More substantial delay between requests to avoid API rate limits
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Increased delay to 1.5 seconds
+      // Substantial delay between requests to avoid API rate limits
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Increased delay to 2 seconds
     }
     
     processedCount += batch.length;
@@ -129,15 +143,13 @@ export function getDictionary(): string[] {
   }
   
   // If not initialized yet, start initialization process but return reliable words
-  if (!isDictionaryInitialized) {
-    // Don't call initializeDictionary() directly here to avoid repeating the initialization
-    // Just set the flag to initiate the process once
+  if (!isDictionaryInitialized && !initializationRequested) {
+    // Schedule initialization with a delay to avoid immediate execution
     setTimeout(() => {
-      if (!isDictionaryInitialized) {
+      if (!initializationRequested) {
         initializeDictionary();
       }
-    }, 1000);
-    return getReliableWordsList();
+    }, 3000);
   }
   
   // Fallback to reliable words if no verified words yet
@@ -160,7 +172,6 @@ function getFallbackDictionary(): string[] {
     "amber", "golden", "resplendent", "brilliant", "dazzling", "glittering", "shining", "glowing", "vibrant", "vivid",
     "somber", "gloomy", "mournful", "melancholy", "dreary", "dismal", "bleak", "depressing", "oppressive", "foreboding",
     "refreshing", "invigorating", "revitalizing", "rejuvenating", "energizing", "stimulating", "exhilarating", "bracing", "enlivening", "reviving",
-    // More diverse words
     "ephemeral", "resonant", "synchronous", "parallel", "abstract", "abundant", "adjacent", "adventurous", "algorithmic", "ambiguous",
     "analog", "anomalous", "anonymous", "anticipatory", "arcane", "astronomical", "atmospheric", "authentic", "autonomous", "auxiliary",
     "balanced", "baroque", "botanical", "buoyant", "calibrated", "capricious", "cardinal", "cathartic", "chromatic", "cinematic",
@@ -186,7 +197,9 @@ function getFallbackDictionary(): string[] {
   ];
 }
 
-// Start loading the dictionary but with a delay to avoid immediate API calls
+// Start loading the dictionary but with a significant delay to avoid immediate API calls
+// Only do this if the app is likely to need weather words soon
 setTimeout(() => {
-  initializeDictionary();
-}, 2000);
+  // We'll initialize when the user first interacts with the app
+  // This will be triggered when they request weather data
+}, 5000);

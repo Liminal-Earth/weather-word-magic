@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import LocationInput from "@/components/LocationInput";
 import WeatherWord from "@/components/WeatherWord";
@@ -7,6 +7,7 @@ import WeatherDetails from "@/components/WeatherDetails";
 import Footer from "@/components/Footer";
 import { WeatherData, getWeatherByZipcode, getWeatherByGeolocation, getBackgroundClass } from "@/services/weatherService";
 import { generateWeatherWord } from "@/services/wordMappingService";
+import { initializeDictionary } from "@/services/dictionaryService";
 import { CloudSun } from "lucide-react";
 
 const Index = () => {
@@ -15,6 +16,27 @@ const Index = () => {
   const [factorContributions, setFactorContributions] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState<boolean>(false);
   const { toast } = useToast();
+
+  // Initialize dictionary when component mounts, but only once user interacts
+  useEffect(() => {
+    const handleUserInteraction = () => {
+      // Initialize dictionary on first user interaction
+      initializeDictionary();
+      // Remove event listeners after first interaction
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+    };
+    
+    // Add event listeners for user interaction
+    document.addEventListener('click', handleUserInteraction);
+    document.addEventListener('keydown', handleUserInteraction);
+    
+    // Clean up event listeners if component unmounts
+    return () => {
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+    };
+  }, []);
 
   const fetchWeatherData = useCallback(async (
     locationType: "zip" | "geo", 
