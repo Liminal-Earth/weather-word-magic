@@ -88,13 +88,13 @@ export async function getWeatherByGeolocation(lat: number, lon: number): Promise
   }
 }
 
-// Fetch weather data from National Weather Service API by zipcode
-// NWS doesn't directly support zipcode, so we'll use a geocoding service first
+// Instead of using the Census geocoding API, we'll use a simpler approach
+// For zipcodes, we'll use nominatim.openstreetmap.org which supports CORS
 export async function getWeatherByZipcode(zipcode: string, country: string = "us"): Promise<WeatherData | null> {
   try {
-    // Use the Census.gov geocoding API to convert zipcode to coordinates
+    // Use OpenStreetMap's Nominatim service for geocoding the zipcode
     const geocodeResponse = await fetch(
-      `https://geocoding.geo.census.gov/geocoder/locations/address?benchmark=2020&format=json&street=&zip=${zipcode}`
+      `https://nominatim.openstreetmap.org/search?postalcode=${zipcode}&country=${country}&format=json`
     );
 
     if (!geocodeResponse.ok) {
@@ -102,15 +102,14 @@ export async function getWeatherByZipcode(zipcode: string, country: string = "us
     }
 
     const geocodeData = await geocodeResponse.json();
-    const addresses = geocodeData.result?.addressMatches;
     
-    if (!addresses || addresses.length === 0) {
+    if (!geocodeData || geocodeData.length === 0) {
       throw new Error("No location found for this zipcode");
     }
 
-    const coordinates = addresses[0].coordinates;
-    const lat = coordinates.y;
-    const lon = coordinates.x;
+    const location = geocodeData[0];
+    const lat = parseFloat(location.lat);
+    const lon = parseFloat(location.lon);
 
     // Now use the coordinates to get the weather
     return getWeatherByGeolocation(lat, lon);
