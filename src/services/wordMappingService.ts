@@ -14,7 +14,7 @@ export function generateWeatherWord(weatherData: WeatherData): {
   word: string, 
   factorContributions: Record<string, number> 
 } {
-  // Get the dictionary of words
+  // Get the dictionary of words (now with verified definitions)
   const wordDictionary = getDictionary();
   
   if (!weatherData || wordDictionary.length === 0) {

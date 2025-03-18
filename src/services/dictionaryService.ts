@@ -3,6 +3,10 @@
 
 // Store the dictionary of words
 let wordDictionary: string[] = [];
+// Cache of words with verified definitions
+let verifiedWordDictionary: string[] = [];
+// Track if verification process is running
+let isVerifyingWords = false;
 
 // Function to initialize the dictionary with many words
 export async function initializeDictionary(): Promise<string[]> {
@@ -30,14 +34,75 @@ export async function initializeDictionary(): Promise<string[]> {
       .slice(0, 15000);
     
     console.log(`Dictionary initialized with ${wordDictionary.length} words`);
+    
+    // Start verifying words in the background
+    verifyWordsWithDefinitions();
+    
     return wordDictionary;
   } catch (error) {
     console.error("Error initializing dictionary:", error);
     // Fallback to a smaller set of interesting words if fetch fails
     wordDictionary = getFallbackDictionary();
     console.log(`Using fallback dictionary with ${wordDictionary.length} words`);
+    
+    // Fallback dictionary already has verified words
+    verifiedWordDictionary = wordDictionary;
+    
     return wordDictionary;
   }
+}
+
+// Function to verify which words have definitions
+async function verifyWordsWithDefinitions() {
+  if (isVerifyingWords || verifiedWordDictionary.length > 0) return;
+  
+  isVerifyingWords = true;
+  console.log("Starting to verify words with definitions...");
+  
+  // Import the definition service
+  const { fetchWordDefinition } = await import("./definitionService");
+  
+  // Use the pre-verified fallback dictionary initially
+  verifiedWordDictionary = getFallbackDictionary();
+  
+  // Process words in batches to avoid overwhelming the API
+  const batchSize = 10;
+  let processedCount = 0;
+  
+  // Create a copy of the dictionary to work with
+  const wordsToVerify = [...wordDictionary].slice(0, 500); // Limit to 500 for practical reasons
+  
+  for (let i = 0; i < wordsToVerify.length; i += batchSize) {
+    const batch = wordsToVerify.slice(i, i + batchSize);
+    
+    // Process each batch in parallel
+    const results = await Promise.all(
+      batch.map(async (word) => {
+        try {
+          const definition = await fetchWordDefinition(word);
+          return { word, hasDefinition: !!definition };
+        } catch (error) {
+          return { word, hasDefinition: false };
+        }
+      })
+    );
+    
+    // Add words with definitions to our verified list
+    results.forEach(result => {
+      if (result.hasDefinition) {
+        verifiedWordDictionary.push(result.word);
+      }
+    });
+    
+    processedCount += batch.length;
+    console.log(`Verified ${processedCount}/${wordsToVerify.length} words. Found ${verifiedWordDictionary.length} with definitions.`);
+    
+    // Small delay to avoid API rate limits
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  
+  console.log(`Word verification complete. ${verifiedWordDictionary.length} words have definitions.`);
+  isVerifyingWords = false;
 }
 
 // Get the current dictionary or initialize if empty
@@ -47,6 +112,12 @@ export function getDictionary(): string[] {
     initializeDictionary();
     return getFallbackDictionary();
   }
+  
+  // Once we have verified words, use those instead
+  if (verifiedWordDictionary.length > 0) {
+    return verifiedWordDictionary;
+  }
+  
   return wordDictionary;
 }
 

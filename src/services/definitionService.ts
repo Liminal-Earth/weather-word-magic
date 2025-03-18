@@ -59,3 +59,11 @@ export async function fetchWordDefinition(word: string): Promise<string | null> 
     return null;
   }
 }
+
+/**
+ * Check if a word has a definition (for verification purposes)
+ */
+export async function hasDefinition(word: string): Promise<boolean> {
+  const definition = await fetchWordDefinition(word);
+  return definition !== null;
+}
