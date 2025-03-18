@@ -14,7 +14,7 @@ import { getReliableWordsList } from "./definitionService";
 let lastWeatherData: WeatherData | null = null;
 let lastGeneratedWord: { word: string, factorContributions: Record<string, number> } | null = null;
 
-// Generate a word based on weather parameters with much finer granularity
+// Generate a word based on weather parameters with increased sensitivity to small changes
 export function generateWeatherWord(weatherData: WeatherData): { 
   word: string, 
   factorContributions: Record<string, number> 
@@ -66,16 +66,35 @@ export function generateWeatherWord(weatherData: WeatherData): {
     return obj;
   }, {} as Record<string, number>);
 
-  // Calculate a composite score for word selection (always between 0 and 1)
-  const compositeScore = Object.values(weightedFactors).reduce((sum, val) => sum + val, 0) / 
-                        Object.values(factorWeights).reduce((sum, val) => sum + val, 0);
+  // Add a random seed based on the exact weather values to introduce more variety
+  // This will cause small differences in weather to potentially yield different words
+  const randomSeed = 
+    (weatherData.temperature * 0.01) + 
+    (weatherData.humidity * 0.005) + 
+    (weatherData.windSpeed * 0.02) + 
+    (weatherData.timestamp % 100) * 0.001;
+  
+  // Calculate a composite score for word selection
+  const compositeScore = (
+    (Object.values(weightedFactors).reduce((sum, val) => sum + val, 0) / 
+    Object.values(factorWeights).reduce((sum, val) => sum + val, 0))
+    + (randomSeed * 0.15)  // Add randomness factor (15% weight)
+  );
   
   // Ensure the composite score is between 0 and 1
   const normalizedScore = Math.max(0, Math.min(1, compositeScore));
   
-  // Use the normalized score to directly select a word from the dictionary
-  // This makes the selection deterministic based on weather conditions
-  const index = Math.floor(normalizedScore * (wordDictionary.length - 1));
+  // Add jitter to increase sensitivity to small weather changes
+  // Use exact temperature, humidity and wind values to create tiny variations
+  const jitterFactor = 
+    ((weatherData.temperature % 1) * 0.03) + 
+    ((weatherData.humidity % 1) * 0.02) + 
+    ((weatherData.windSpeed % 1) * 0.02);
+  
+  const finalScore = Math.max(0, Math.min(1, normalizedScore + jitterFactor));
+  
+  // Use the final score to select a word from the dictionary
+  const index = Math.floor(finalScore * (wordDictionary.length - 1));
   const finalIndex = Math.max(0, Math.min(wordDictionary.length - 1, index));
   
   const result = { 

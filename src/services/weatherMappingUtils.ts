@@ -113,7 +113,7 @@ export function normalizeWeatherValues(weatherData: WeatherData) {
   };
 }
 
-// Function to determine if weather has changed significantly
+// Function to determine if weather has changed significantly - more sensitive to small changes
 export function hasWeatherChangedSignificantly(
   oldData: WeatherData | null, 
   newData: WeatherData
@@ -123,19 +123,19 @@ export function hasWeatherChangedSignificantly(
   // Check if location has changed
   if (oldData.location !== newData.location) return true;
   
-  // Check if significant time has passed (30 minutes)
+  // Check if any time has passed (15 minutes) - reduced from 30 minutes
   const timeDiff = Math.abs(newData.timestamp - oldData.timestamp);
-  if (timeDiff > 1800) return true; // 30 minutes = 1800 seconds
+  if (timeDiff > 900) return true; // 15 minutes = 900 seconds
   
-  // Check for significant changes in weather parameters
+  // Check for smaller changes in weather parameters - more sensitive thresholds
   const tempDiff = Math.abs(newData.temperature - oldData.temperature);
-  if (tempDiff >= 5) return true; // 5 degree temperature change
+  if (tempDiff >= 2) return true; // 2 degree temperature change (reduced from 5)
   
   const humidityDiff = Math.abs(newData.humidity - oldData.humidity);
-  if (humidityDiff >= 15) return true; // 15% humidity change
+  if (humidityDiff >= 5) return true; // 5% humidity change (reduced from 15)
   
   const windDiff = Math.abs(newData.windSpeed - oldData.windSpeed);
-  if (windDiff >= 10) return true; // 10 mph wind speed change
+  if (windDiff >= 3) return true; // 3 mph wind speed change (reduced from 10)
   
   const conditionChanged = newData.condition !== oldData.condition;
   if (conditionChanged) return true;
