@@ -14,6 +14,7 @@ const POLL_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
 const Index = () => {
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [weatherWord, setWeatherWord] = useState<string>("");
+  const [factorContributions, setFactorContributions] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [lastLocation, setLastLocation] = useState<{type: "zip" | "geo", value: string | {lat: number, lon: number}} | null>(null);
   const { toast } = useToast();
@@ -36,13 +37,14 @@ const Index = () => {
         // Check if weather has changed significantly
         if (!weatherData || hasWeatherChangedSignificantly(weatherData, newWeatherData)) {
           setWeatherData(newWeatherData);
-          const word = generateWeatherWord(newWeatherData);
-          setWeatherWord(word);
+          const result = generateWeatherWord(newWeatherData);
+          setWeatherWord(result.word);
+          setFactorContributions(result.factorContributions);
           
           if (weatherData) {
             toast({
               title: "Weather Update",
-              description: `Your weather word has changed to "${word}"`,
+              description: `Your weather word has changed to "${result.word}"`,
             });
           }
         } else {
@@ -109,7 +111,8 @@ const Index = () => {
             <>
               <WeatherWord 
                 word={weatherWord} 
-                weatherData={weatherData} 
+                weatherData={weatherData}
+                factorContributions={factorContributions} 
               />
               
               <WeatherDetails weatherData={weatherData} />

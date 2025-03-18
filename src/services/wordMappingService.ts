@@ -48,11 +48,25 @@ function mapConditionToValue(condition: string): number {
     "Light Snow": 0.4,
     "Heavy Snow": 0.1,
     "Drizzle": 0.35,
-    "Haze": 0.55
+    "Haze": 0.55,
+    "Partly Cloudy": 0.7,
+    "Mostly Cloudy": 0.4,
+    "Mostly Clear": 0.8,
+    "Partly Sunny": 0.75,
+    "Mostly Sunny": 0.85,
+    "Fair": 0.8,
+    "Few Clouds": 0.7
   };
 
+  // Try to match the condition text with our map
+  for (const [key, value] of Object.entries(conditionMap)) {
+    if (condition.toLowerCase().includes(key.toLowerCase())) {
+      return value;
+    }
+  }
+
   // Default to middle value if condition not found
-  return conditionMap[condition] || 0.5;
+  return 0.5;
 }
 
 // Map time of day to value between 0-1 (0 = midnight, 0.5 = noon, 1 = just before midnight)
@@ -62,8 +76,8 @@ function getTimeOfDayValue(): number {
 }
 
 // Generate a word based on weather parameters
-export function generateWeatherWord(weatherData: WeatherData): string {
-  if (!weatherData) return "unknown";
+export function generateWeatherWord(weatherData: WeatherData): { word: string, factorContributions: Record<string, number> } {
+  if (!weatherData) return { word: "unknown", factorContributions: {} };
 
   // Normalize values to range 0-1
   const temperatureValue = (weatherData.temperature - 0) / 100; // Assuming range 0-100°F
@@ -73,19 +87,42 @@ export function generateWeatherWord(weatherData: WeatherData): string {
   const timeValue = getTimeOfDayValue();
   const pressureValue = (weatherData.pressure - 970) / 60; // Normalize pressure ~970-1030 hPa
 
+  // Raw factor values (normalized between 0-1)
+  const rawFactors = {
+    temperature: temperatureValue,
+    humidity: humidityValue,
+    wind: windSpeedValue,
+    sky: conditionValue,
+    time: timeValue,
+    pressure: pressureValue
+  };
+
+  // Calculate weighted factor values
+  const weightedFactors = {
+    temperature: temperatureValue * factorWeights.temperature,
+    humidity: humidityValue * factorWeights.humidity,
+    wind: windSpeedValue * factorWeights.windSpeed,
+    sky: conditionValue * factorWeights.condition,
+    time: timeValue * factorWeights.timeOfDay,
+    pressure: pressureValue * factorWeights.pressure
+  };
+
+  // Calculate factor contributions as a percentage of the total
+  const totalWeight = Object.values(weightedFactors).reduce((sum, val) => sum + val, 0);
+  const factorContributions = Object.entries(weightedFactors).reduce((obj, [key, value]) => {
+    obj[key] = value / totalWeight;
+    return obj;
+  }, {} as Record<string, number>);
+
   // Calculate a composite score
-  const compositeScore = (
-    temperatureValue * factorWeights.temperature +
-    humidityValue * factorWeights.humidity +
-    windSpeedValue * factorWeights.windSpeed +
-    conditionValue * factorWeights.condition +
-    timeValue * factorWeights.timeOfDay +
-    pressureValue * factorWeights.pressure
-  );
+  const compositeScore = totalWeight;
 
   // Use the composite score to select a word from the dictionary
   const index = Math.floor(compositeScore * (wordDictionary.length - 1));
-  return wordDictionary[index] || "enigmatic";
+  return { 
+    word: wordDictionary[index] || "enigmatic",
+    factorContributions
+  };
 }
 
 // Function to determine if weather has changed significantly
