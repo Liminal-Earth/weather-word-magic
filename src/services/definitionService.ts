@@ -52,64 +52,131 @@ export async function fetchWordDefinition(word: string): Promise<string | null> 
     // Extract a small portion of HTML for debugging
     const sampleHtml = html.substring(0, 300) + "...";
     console.log(`Sample HTML: ${sampleHtml}`);
-    
-    // Try multiple regex patterns to find definitions
-    // Pattern 1: Look for one-click-content spans (primary pattern)
-    let definitionRegex = /<span class="one-click-content[^"]*">([^<]+)<\/span>/;
-    let match = html.match(definitionRegex);
-    
-    if (match && match[1]) {
-      const definition = match[1].trim();
-      console.log(`Definition found for "${word}": ${definition}`);
-      return definition;
+
+    // First, check if we're on a "no exact match found" page
+    if (html.includes("No exact matches found for") || html.includes("No results found for")) {
+      console.log(`Dictionary.com has no exact match for "${word}"`);
+      
+      // Return fallback if available
+      const reliableMatch = reliableWords.find(w => w.word.toLowerCase() === word.toLowerCase());
+      return reliableMatch?.definition || null;
     }
     
-    // Pattern 2: Try looking for the definition value with data-testid
-    definitionRegex = /<span[^>]*data-testid="[^"]*def-value[^"]*"[^>]*>([^<]+)<\/span>/;
-    match = html.match(definitionRegex);
+    // Modern Dictionary.com patterns (2023-2024)
     
-    if (match && match[1]) {
-      const definition = match[1].trim();
-      console.log(`Definition found (alt method 1) for "${word}": ${definition}`);
-      return definition;
+    // Find the meaning section
+    const meaningSection = html.match(/<section[^>]*class="[^"]*css-[^"]*"[^>]*>[\s\S]*?<\/section>/g);
+    if (meaningSection && meaningSection[0]) {
+      console.log("Found meaning section, extracting definition...");
+      
+      // Look for definition inside the meaning section
+      // Pattern 1: Direct definition spans
+      let defMatch = meaningSection[0].match(/<span[^>]*class="[^"]*one-click-content[^"]*"[^>]*>([\s\S]*?)<\/span>/);
+      
+      if (defMatch && defMatch[1]) {
+        const definition = defMatch[1].trim().replace(/\s+/g, ' ');
+        console.log(`Definition found (method 1): ${definition}`);
+        return definition;
+      }
+      
+      // Pattern 2: Definition value spans
+      defMatch = meaningSection[0].match(/<span[^>]*data-testid="[^"]*def-value[^"]*"[^>]*>([\s\S]*?)<\/span>/);
+      
+      if (defMatch && defMatch[1]) {
+        const definition = defMatch[1].trim().replace(/\s+/g, ' ');
+        console.log(`Definition found (method 2): ${definition}`);
+        return definition;
+      }
+      
+      // Pattern 3: Luna definition spans (newer format)
+      defMatch = meaningSection[0].match(/<span[^>]*data-luna-word[^>]*>([\s\S]*?)<\/span>/);
+      
+      if (defMatch && defMatch[1]) {
+        const definition = defMatch[1].trim().replace(/\s+/g, ' ');
+        console.log(`Definition found (method 3): ${definition}`);
+        return definition;
+      }
+      
+      // Pattern 4: First paragraph in definition section
+      defMatch = meaningSection[0].match(/<p[^>]*>([\s\S]*?)<\/p>/);
+      
+      if (defMatch && defMatch[1]) {
+        const rawDef = defMatch[1];
+        const definition = rawDef.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (definition.length > 10) {
+          console.log(`Definition found (method 4): ${definition}`);
+          return definition;
+        }
+      }
     }
     
-    // Pattern 3: Look for .e1q3nk1v1 class which is commonly used for definitions
-    definitionRegex = /<span[^>]*class="[^"]*e1q3nk1v1[^"]*"[^>]*>([^<]+)<\/span>/;
-    match = html.match(definitionRegex);
+    // Pattern 5: Look for definitions in any section with key classnames
+    const defSectionMatch = html.match(/<div[^>]*class="[^"]*css-[^"]*"[^>]*data-type="word-definitions?[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
     
-    if (match && match[1]) {
-      const definition = match[1].trim();
-      console.log(`Definition found (alt method 2) for "${word}": ${definition}`);
-      return definition;
+    if (defSectionMatch && defSectionMatch[1]) {
+      console.log("Found definition section by data-type");
+      const section = defSectionMatch[1];
+      
+      const contentMatch = section.match(/<div[^>]*>([\s\S]*?)<\/div>/);
+      if (contentMatch && contentMatch[1]) {
+        const definition = contentMatch[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (definition.length > 10) {
+          console.log(`Definition found (method 5): ${definition}`);
+          return definition;
+        }
+      }
     }
     
-    // Pattern 4: Most generic approach - looking for definition sections
-    definitionRegex = /<div[^>]*class="[^"]*definition[^"]*"[^>]*>(.*?)<\/div>/;
-    match = html.match(definitionRegex);
+    // Pattern 6: Last resort - search for any element with a definition role
+    const defRoleMatch = html.match(/<[^>]*role="definition"[^>]*>([\s\S]*?)<\/[^>]*>/i);
     
-    if (match && match[1]) {
-      // Clean up HTML tags from the definition
-      const definition = match[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-      console.log(`Definition found (alt method 3) for "${word}": ${definition}`);
-      return definition;
+    if (defRoleMatch && defRoleMatch[1]) {
+      const definition = defRoleMatch[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (definition.length > 10) {
+        console.log(`Definition found (method 6): ${definition}`);
+        return definition;
+      }
     }
     
-    // Pattern 5: Try to match any "meaning" section
-    definitionRegex = /<div[^>]*class="[^"]*meaning[^"]*"[^>]*>(.*?)<\/div>/;
-    match = html.match(definitionRegex);
+    // Pattern 7: Look for any "description" meta tag (might contain definition)
+    const metaDescMatch = html.match(/<meta[^>]*name="description"[^>]*content="([^"]*)"[^>]*>/i);
     
-    if (match && match[1]) {
-      // Clean up HTML tags from the definition
-      const definition = match[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-      console.log(`Definition found (alt method 4) for "${word}": ${definition}`);
-      return definition;
+    if (metaDescMatch && metaDescMatch[1]) {
+      const metaDesc = metaDescMatch[1].trim();
+      // Check if meta description contains actual definition and not just site info
+      if (metaDesc.length > 20 && !metaDesc.startsWith("Dictionary.com") && !metaDesc.includes("definition of")) {
+        console.log(`Definition found (method 7): ${metaDesc}`);
+        return metaDesc;
+      }
     }
     
-    // If extraction fails but page loaded, check for the word in the title
-    if (html.includes(`>${word}<`) || html.toLowerCase().includes(`>${word.toLowerCase()}<`)) {
-      console.log(`Word "${word}" found on page but couldn't extract definition`);
-      return `This word exists in Dictionary.com but we couldn't extract the definition due to page structure changes.`;
+    // If extraction fails but page loaded, try to extract any meaningful content
+    // that might be a definition
+    if (html.includes(`>${word}</`) || html.toLowerCase().includes(`>${word.toLowerCase()}</`)) {
+      console.log(`Word "${word}" found on page but couldn't extract definition with standard patterns`);
+      
+      // Try to extract any sentence with the word first, as it might be a definition
+      const sentencesWithWord = [];
+      const sentenceRegex = /[^.!?]+[.!?]+/g;
+      const lowerHtml = html.toLowerCase();
+      const lowerWord = word.toLowerCase();
+      
+      let sentence;
+      while ((sentence = sentenceRegex.exec(lowerHtml)) !== null) {
+        if (sentence[0].includes(lowerWord)) {
+          const cleanSentence = sentence[0].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+          if (cleanSentence.length > 15 && cleanSentence.length < 200) {
+            sentencesWithWord.push(cleanSentence);
+          }
+        }
+      }
+      
+      if (sentencesWithWord.length > 0) {
+        console.log(`Found ${sentencesWithWord.length} sentences with the word, using first as definition`);
+        return sentencesWithWord[0];
+      }
+      
+      return `This word exists in Dictionary.com but we couldn't extract its definition due to page structure changes.`;
     }
     
     console.log(`No definition patterns matched for "${word}"`);
