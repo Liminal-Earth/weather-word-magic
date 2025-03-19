@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -103,15 +104,17 @@ const DefinitionPopover = ({ word }: DefinitionPopoverProps) => {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 text-left p-0">
+        <div className="p-4">
+          <div className="mb-2">
+            <h3 className="font-medium">{word}</h3>
+            {definition?.phonetic && (
+              <p className="text-sm text-gray-500 mt-1">{definition.phonetic}</p>
+            )}
+          </div>
+        </div>
+        
         <ScrollArea className="max-h-[40vh]">
-          <div className="p-4 space-y-4">
-            <div>
-              <h3 className="font-medium">{word}</h3>
-              {definition?.phonetic && (
-                <p className="text-sm text-gray-500 mt-1">{definition.phonetic}</p>
-              )}
-            </div>
-            
+          <div className="px-4 pb-4 space-y-4">
             {isLoading && (
               <div className="flex items-center gap-2 py-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
