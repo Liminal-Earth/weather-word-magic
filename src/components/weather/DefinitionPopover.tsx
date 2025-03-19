@@ -1,8 +1,8 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Info, ExternalLink, Loader2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Types for the Dictionary API response
 interface DictionaryApiResponse {
@@ -102,67 +102,69 @@ const DefinitionPopover = ({ word }: DefinitionPopoverProps) => {
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Info className="h-4 w-4" />}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 text-left max-h-[70vh] overflow-y-auto">
-        <div className="space-y-4">
-          <div>
-            <h3 className="font-medium">{word}</h3>
-            {definition?.phonetic && (
-              <p className="text-sm text-gray-500 mt-1">{definition.phonetic}</p>
+      <PopoverContent className="w-80 text-left p-0">
+        <ScrollArea className="max-h-[40vh]">
+          <div className="p-4 space-y-4">
+            <div>
+              <h3 className="font-medium">{word}</h3>
+              {definition?.phonetic && (
+                <p className="text-sm text-gray-500 mt-1">{definition.phonetic}</p>
+              )}
+            </div>
+            
+            {isLoading && (
+              <div className="flex items-center gap-2 py-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Loading definition...</span>
+              </div>
+            )}
+            
+            {error && (
+              <div className="space-y-2">
+                <p className="text-sm text-red-500">{error}</p>
+                <Button 
+                  onClick={handleSearch} 
+                  className="w-full justify-between"
+                  variant="outline"
+                  size="sm"
+                >
+                  Search on DuckDuckGo instead
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            
+            {definition && !isLoading && (
+              <div className="space-y-4">
+                {definition.meanings.map((meaning, index) => (
+                  <div key={index} className="space-y-2">
+                    <h4 className="text-sm font-medium text-indigo-600">{meaning.partOfSpeech}</h4>
+                    <ul className="space-y-2">
+                      {meaning.definitions.slice(0, 2).map((def, idx) => (
+                        <li key={idx} className="text-sm">
+                          <p>{def.definition}</p>
+                          {def.example && (
+                            <p className="text-xs text-gray-500 mt-1 italic">"{def.example}"</p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+                
+                <Button 
+                  onClick={handleSearch} 
+                  className="w-full justify-between mt-2"
+                  variant="outline"
+                  size="sm"
+                >
+                  Search more on DuckDuckGo
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+              </div>
             )}
           </div>
-          
-          {isLoading && (
-            <div className="flex items-center gap-2 py-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">Loading definition...</span>
-            </div>
-          )}
-          
-          {error && (
-            <div className="space-y-2">
-              <p className="text-sm text-red-500">{error}</p>
-              <Button 
-                onClick={handleSearch} 
-                className="w-full justify-between"
-                variant="outline"
-                size="sm"
-              >
-                Search on DuckDuckGo instead
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-          
-          {definition && !isLoading && (
-            <div className="space-y-4">
-              {definition.meanings.map((meaning, index) => (
-                <div key={index} className="space-y-2">
-                  <h4 className="text-sm font-medium text-indigo-600">{meaning.partOfSpeech}</h4>
-                  <ul className="space-y-2">
-                    {meaning.definitions.slice(0, 2).map((def, idx) => (
-                      <li key={idx} className="text-sm">
-                        <p>{def.definition}</p>
-                        {def.example && (
-                          <p className="text-xs text-gray-500 mt-1 italic">"{def.example}"</p>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-              
-              <Button 
-                onClick={handleSearch} 
-                className="w-full justify-between mt-2"
-                variant="outline"
-                size="sm"
-              >
-                Search more on DuckDuckGo
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-        </div>
+        </ScrollArea>
       </PopoverContent>
     </Popover>
   );
