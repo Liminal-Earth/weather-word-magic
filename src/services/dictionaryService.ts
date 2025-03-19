@@ -16,7 +16,7 @@ let isVerifyingWords = false;
 export async function initializeDictionary(): Promise<string[]> {
   // If already initialized or in progress, don't start again
   if (isDictionaryInitialized || initializationRequested) {
-    return verifiedWordDictionary.length > 0 ? verifiedWordDictionary : getReliableWordsList();
+    return wordDictionary.length > 0 ? wordDictionary : getReliableWordsList();
   }
   
   // Mark that initialization has been requested to prevent duplicate calls
@@ -53,18 +53,13 @@ export async function initializeDictionary(): Promise<string[]> {
     // Set the initialized flag
     isDictionaryInitialized = true;
     
-    // We'll use just the reliable words list initially
-    // We will NOT automatically verify words - this will only happen when explicitly requested
-    
+    // Always use the full wordDictionary, not just verified words
     return wordDictionary;
   } catch (error) {
     console.error("Error initializing dictionary:", error);
     // Fallback to a smaller set of interesting words if fetch fails
     wordDictionary = getFallbackDictionary();
     console.log(`Using fallback dictionary with ${wordDictionary.length} words`);
-    
-    // Fallback dictionary already has verified words
-    verifiedWordDictionary = [...getReliableWordsList(), ...wordDictionary];
     
     // We're done initializing, even though it was with fallback data
     isDictionaryInitialized = true;
@@ -135,9 +130,9 @@ export async function verifyWordsWithDefinitions(count: number = 20): Promise<st
 
 // Get the current dictionary or initialize if empty
 export function getDictionary(): string[] {
-  // Always use verified words when available
-  if (verifiedWordDictionary.length > 0) {
-    return verifiedWordDictionary;
+  // Use the full dictionary of words when available instead of just verified words
+  if (wordDictionary.length > 0) {
+    return wordDictionary;
   }
   
   // If not initialized yet, start initialization process but return reliable words
@@ -150,7 +145,7 @@ export function getDictionary(): string[] {
     }, 3000);
   }
   
-  // Fallback to reliable words if no verified words yet
+  // Fallback to reliable words if no dictionary yet
   return getReliableWordsList();
 }
 

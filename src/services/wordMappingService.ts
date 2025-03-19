@@ -1,4 +1,5 @@
 
+
 import { WeatherData } from "./weatherService";
 import { getDictionary } from "./dictionaryService";
 import { 
@@ -24,7 +25,7 @@ export function generateWeatherWord(weatherData: WeatherData): {
     return lastGeneratedWord;
   }
   
-  // Get the dictionary of words (now with verified definitions)
+  // Get the dictionary of words (use the full dictionary, not just verified words)
   const wordDictionary = getDictionary();
   
   if (!weatherData || wordDictionary.length === 0) {
@@ -66,40 +67,39 @@ export function generateWeatherWord(weatherData: WeatherData): {
     return obj;
   }, {} as Record<string, number>);
 
-  // Enhanced randomization to make every degree, percentage and mph matter
-  // Use fractional parts of each weather metric to generate variety
+  // ENHANCED: Create a unique weather fingerprint that captures the exact values
+  // Each decimal place matters to create maximum variety
   const uniqueWeatherFingerprint = 
-    (weatherData.temperature) + 
-    (weatherData.humidity * 0.01) + 
-    (weatherData.windSpeed * 0.1);
+    (weatherData.temperature * 100) + 
+    (weatherData.humidity * 10) + 
+    (weatherData.windSpeed);
   
   // Create a pseudo-random value from the unique fingerprint
   const hashValue = Math.sin(uniqueWeatherFingerprint) * 10000;
-  const randomOffset = (hashValue - Math.floor(hashValue)) * 0.2; // 0-0.2 range
+  const randomOffset = (hashValue - Math.floor(hashValue));
   
-  // Calculate composite score plus high-sensitivity randomization
+  // Calculate composite score with enhanced sensitivity
   const compositeScore = (
     (Object.values(weightedFactors).reduce((sum, val) => sum + val, 0) / 
     Object.values(factorWeights).reduce((sum, val) => sum + val, 0))
   );
   
-  // Make sure small changes have big impacts on word selection
-  // Use modulo of exact values to create a unique signature
-  const microVariations = 
-    ((weatherData.temperature % 1) * 0.07) + 
-    ((weatherData.humidity % 1) * 0.05) + 
-    ((weatherData.windSpeed % 1) * 0.05);
+  // Add location as a factor - use the string length for variation
+  const locationVariation = (weatherData.location.length % 10) / 100;
   
   // Add timestamp variation to ensure refreshes give different results
-  const timeVariation = ((Date.now() % 10000) / 10000) * 0.05;
+  const timeVariation = (Date.now() % 10000) / 10000 * 0.1;
   
-  // Combine everything to create a final score
-  const finalScore = compositeScore + randomOffset + microVariations + timeVariation;
+  // Combine everything to create a final score with high variability
+  let finalScore = (compositeScore * 0.5) + (randomOffset * 0.3) + locationVariation + timeVariation;
+  
+  // Ensure we get different indexes for different locations even with similar weather
+  finalScore = (finalScore + (locationVariation * 5)) % 1;
   
   // Normalize to ensure we stay within 0-1 range
   const normalizedFinalScore = Math.max(0, Math.min(0.999, finalScore));
   
-  // Use the highly sensitive final score to select a word
+  // Use the sensitive final score to select a word
   const index = Math.floor(normalizedFinalScore * wordDictionary.length);
   const finalIndex = Math.max(0, Math.min(wordDictionary.length - 1, index));
   
