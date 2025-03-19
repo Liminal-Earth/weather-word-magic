@@ -2,11 +2,9 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { WeatherData } from "@/services/weatherService";
-import { BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from "recharts";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { fetchWordDefinition } from "@/services/definitionService";
-import { Info, Loader2 } from "lucide-react";
+import DefinitionPopover from "@/components/weather/DefinitionPopover";
+import WordInfluenceChart from "@/components/weather/WordInfluenceChart";
+import WeatherFactors from "@/components/weather/WeatherFactors";
 
 interface WeatherWordProps {
   word: string;
@@ -16,15 +14,9 @@ interface WeatherWordProps {
 
 const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProps) => {
   const [fadeIn, setFadeIn] = useState(false);
-  const [definition, setDefinition] = useState<string | null>(null);
-  const [loadingDefinition, setLoadingDefinition] = useState(false);
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   useEffect(() => {
     setFadeIn(false);
-    setDefinition(null);
-    setErrorMessage(null);
     const timer = setTimeout(() => {
       setFadeIn(true);
     }, 100);
@@ -32,47 +24,8 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
     return () => clearTimeout(timer);
   }, [word]);
   
-  const handleFetchDefinition = async () => {
-    if (loadingDefinition) return;
-    
-    setLoadingDefinition(true);
-    setErrorMessage(null);
-    setDefinition(null);
-    
-    try {
-      console.log("Requesting definition for word:", word);
-      
-      const result = await fetchWordDefinition(word);
-      console.log("Definition result:", result);
-      
-      if (result) {
-        setDefinition(result);
-      } else {
-        setErrorMessage("No definition found for this word.");
-      }
-    } catch (error) {
-      console.error("Error fetching definition:", error);
-      setErrorMessage("Could not fetch the definition at this time.");
-    } finally {
-      setLoadingDefinition(false);
-    }
-  };
-  
-  // Fetch definition when popover opens
-  const handlePopoverOpenChange = (open: boolean) => {
-    setPopoverOpen(open);
-    if (open && !definition && !loadingDefinition) {
-      handleFetchDefinition();
-    }
-  };
-  
   if (!weatherData) return null;
 
-  const chartData = factorContributions ? Object.entries(factorContributions).map(([name, value]) => ({
-    name: getFactorDisplayName(name),
-    value: Math.round(value * 100)
-  })).sort((a, b) => b.value - a.value) : [];
-  
   return (
     <Card className="w-full max-w-lg mx-auto backdrop-blur-sm bg-white/80 shadow-lg border-0 overflow-hidden transition-all duration-500">
       <CardContent className="p-6 sm:p-8">
@@ -87,41 +40,7 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
               <p className="font-serif text-5xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-gray-800 mb-2">
                 {word}
               </p>
-              <Popover open={popoverOpen} onOpenChange={handlePopoverOpenChange}>
-                <PopoverTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="rounded-full mt-1 h-8 w-8" 
-                    aria-label="Show definition"
-                  >
-                    {loadingDefinition ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Info className="h-4 w-4" />
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 text-left">
-                  <div className="space-y-2">
-                    <h3 className="font-medium">{word}</h3>
-                    {loadingDefinition ? (
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm">Loading definition...</span>
-                      </div>
-                    ) : errorMessage ? (
-                      <p className="text-sm text-gray-600">{errorMessage}</p>
-                    ) : definition ? (
-                      <p className="text-sm text-gray-600">{definition}</p>
-                    ) : (
-                      <p className="text-sm text-gray-600">
-                        No definition found. This might be a rare or specialized word.
-                      </p>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <DefinitionPopover word={word} />
             </div>
           </div>
           <p className="text-sm text-gray-500 mt-4">
@@ -136,50 +55,11 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
             </p>
           </div>
 
-          {factorContributions && chartData.length > 0 && (
+          {factorContributions && Object.keys(factorContributions).length > 0 && (
             <div className="mt-6">
               <h3 className="text-sm font-medium text-gray-500 mb-2">Word Influence Factors:</h3>
-              <div className="h-[350px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 20, right: 10, left: 10, bottom: 5 }}>
-                    <XAxis dataKey="name" fontSize={11} tickMargin={5} />
-                    <Tooltip 
-                      formatter={(value) => [`${value}%`, 'Influence']}
-                      contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)' }}
-                    />
-                    <Bar 
-                      dataKey="value" 
-                      fill="#82ca9d" 
-                      radius={[4, 4, 0, 0]} 
-                      name="Influence" 
-                      label={{ position: 'top', fontSize: 11, fill: '#666', formatter: (value) => `${value}%` }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-500 bg-gray-50 p-3 rounded-md">
-                <h4 className="col-span-2 font-medium text-gray-600 mb-1">Weather Conditions:</h4>
-                <div className="flex justify-between">
-                  <span>Temperature:</span>
-                  <span className="font-medium">{weatherData.temperature}°F</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Humidity:</span>
-                  <span className="font-medium">{weatherData.humidity}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Wind:</span>
-                  <span className="font-medium">{weatherData.windSpeed} mph</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Sky:</span>
-                  <span className="font-medium">{weatherData.condition}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Time:</span>
-                  <span className="font-medium">{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                </div>
-              </div>
+              <WordInfluenceChart factorContributions={factorContributions} />
+              <WeatherFactors weatherData={weatherData} />
             </div>
           )}
         </div>
@@ -187,17 +67,5 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
     </Card>
   );
 };
-
-function getFactorDisplayName(key: string): string {
-  const nameMap: Record<string, string> = {
-    temperature: "Temperature",
-    humidity: "Humidity",
-    wind: "Wind",
-    sky: "Sky Condition",
-    time: "Time of Day"
-  };
-  
-  return nameMap[key] || key;
-}
 
 export default WeatherWord;
