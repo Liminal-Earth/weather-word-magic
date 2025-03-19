@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { WeatherData } from "@/services/weatherService";
@@ -40,7 +39,12 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
       console.log("Requesting definition for word:", word);
       const result = await fetchWordDefinition(word);
       console.log("Definition result:", result);
-      setDefinition(result);
+      
+      if (result) {
+        setDefinition(result);
+      } else {
+        setDefinition("No definition found for this word.");
+      }
     } catch (error) {
       console.error("Error fetching definition:", error);
       setDefinition("Could not fetch the definition at this time.");
