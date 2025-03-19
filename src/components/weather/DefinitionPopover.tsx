@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Info, ExternalLink, Loader2 } from "lucide-react";
@@ -34,36 +34,53 @@ const DefinitionPopover = ({ word }: DefinitionPopoverProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // Reset definition when word changes
+  useEffect(() => {
+    if (word) {
+      setDefinition(null);
+      setError(null);
+      
+      // If popover is already open, fetch the new definition
+      if (popoverOpen) {
+        fetchDefinition();
+      }
+    }
+  }, [word]);
+  
+  const fetchDefinition = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error("No definition found for this word.");
+        }
+        throw new Error("Failed to fetch definition.");
+      }
+      
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        setDefinition(data[0]);
+      } else {
+        throw new Error("Unexpected API response format.");
+      }
+    } catch (err) {
+      console.error("Error fetching definition:", err);
+      setError(err instanceof Error ? err.message : "An unknown error occurred.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleOpenChange = async (open: boolean) => {
     setPopoverOpen(open);
     
     // Only fetch when opening the popover and we don't already have a definition
     if (open && !definition && !isLoading) {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`);
-        
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error("No definition found for this word.");
-          }
-          throw new Error("Failed to fetch definition.");
-        }
-        
-        const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setDefinition(data[0]);
-        } else {
-          throw new Error("Unexpected API response format.");
-        }
-      } catch (err) {
-        console.error("Error fetching definition:", err);
-        setError(err instanceof Error ? err.message : "An unknown error occurred.");
-      } finally {
-        setIsLoading(false);
-      }
+      fetchDefinition();
     }
   };
 
