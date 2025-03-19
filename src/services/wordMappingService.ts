@@ -2,11 +2,12 @@
 import { WeatherData } from "./weatherService";
 import { getDictionary } from "./dictionaryService";
 import { 
-  factorWeights, 
+  factorWeights,
   mapConditionToValue, 
   getTimeOfDayValue, 
-  normalizeWeatherValues
-} from "./weatherMappingUtils";
+  normalizeWeatherValues,
+  calculateFactorContributions
+} from "./wordMappingUtils";
 import { getReliableWordsList } from "./definitionService";
 
 /**
@@ -26,34 +27,23 @@ export function generateWeatherWord(weatherData: WeatherData): {
     const hashValue = hashWeatherData(weatherData);
     const index = Math.abs(hashValue) % reliableWords.length;
     
+    // Return default factor contributions
     const result = { 
       word: reliableWords[index], 
-      factorContributions: { temperature: 0.30, humidity: 0.20, wind: 0.25, sky: 0.20, time: 0.05 } 
+      factorContributions: { 
+        temperature: factorWeights.temperature, 
+        humidity: factorWeights.humidity, 
+        wind: factorWeights.windSpeed, 
+        sky: factorWeights.condition, 
+        time: factorWeights.timeOfDay 
+      } 
     };
     
     return result;
   }
 
-  // Get normalized weather values (0-1 scale)
-  const rawFactors = normalizeWeatherValues(weatherData);
-
-  // Calculate weighted factor values
-  const weightedFactors = {
-    temperature: rawFactors.temperature * factorWeights.temperature,
-    humidity: rawFactors.humidity * factorWeights.humidity,
-    wind: rawFactors.wind * factorWeights.windSpeed,
-    sky: rawFactors.sky * factorWeights.condition,
-    time: rawFactors.time * factorWeights.timeOfDay
-  };
-
-  // Calculate total contribution
-  const totalContribution = Object.values(weightedFactors).reduce((sum, val) => sum + Math.abs(val), 0);
-  
-  // Calculate factor contributions as percentages
-  const factorContributions = Object.entries(weightedFactors).reduce((obj, [key, value]) => {
-    obj[key] = totalContribution > 0 ? Math.round((Math.abs(value) / totalContribution) * 100) / 100 : 0;
-    return obj;
-  }, {} as Record<string, number>);
+  // Calculate factor contributions
+  const factorContributions = calculateFactorContributions(weatherData);
 
   // Create a deterministic hash value from the weather data
   const hashValue = hashWeatherData(weatherData);

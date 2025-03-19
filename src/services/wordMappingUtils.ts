@@ -1,3 +1,4 @@
+
 import { WeatherData } from "./weatherService";
 
 // Factor weights determine how much each weather parameter influences the word selection
@@ -107,4 +108,27 @@ export function normalizeWeatherValues(weatherData: WeatherData) {
     sky: conditionValue,
     time: timeValue
   };
+}
+
+// Calculate the absolute contribution of each factor in the word selection
+export function calculateFactorContributions(weatherData: WeatherData): Record<string, number> {
+  const normalizedValues = normalizeWeatherValues(weatherData);
+  
+  // Calculate raw contribution of each factor (value × weight)
+  const rawContributions = {
+    temperature: normalizedValues.temperature * factorWeights.temperature,
+    humidity: normalizedValues.humidity * factorWeights.humidity,
+    wind: normalizedValues.wind * factorWeights.windSpeed,
+    sky: normalizedValues.sky * factorWeights.condition,
+    time: normalizedValues.time * factorWeights.timeOfDay
+  };
+  
+  // Calculate the total raw contribution
+  const totalContribution = Object.values(rawContributions).reduce((sum, val) => sum + val, 0);
+  
+  // Calculate the percentage contribution of each factor
+  return Object.entries(rawContributions).reduce((obj, [key, value]) => {
+    obj[key] = totalContribution > 0 ? value / totalContribution : 0;
+    return obj;
+  }, {} as Record<string, number>);
 }
