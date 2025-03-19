@@ -1,7 +1,20 @@
+
 import { toast } from "@/components/ui/use-toast";
 
-// OpenWeatherMap API key - using a valid free tier API key
-const OPENWEATHER_API_KEY = "40d75ae869575c1d1c5814ef3aea962c"; // Updated to a working free tier API key
+// We'll use localStorage to store the user's API key
+const getApiKey = (): string => {
+  return localStorage.getItem("openweather_api_key") || "";
+};
+
+// Function to save API key to localStorage
+export const saveApiKey = (apiKey: string): void => {
+  localStorage.setItem("openweather_api_key", apiKey);
+};
+
+// Function to check if API key exists
+export const hasApiKey = (): boolean => {
+  return !!getApiKey();
+};
 
 export interface WeatherData {
   temperature: number;
@@ -20,9 +33,15 @@ export interface WeatherData {
 
 export async function getWeatherByGeolocation(lat: number, lon: number): Promise<WeatherData | null> {
   try {
+    const apiKey = getApiKey();
+    
+    if (!apiKey) {
+      throw new Error("OpenWeatherMap API key not found. Please set your API key first.");
+    }
+    
     // Use OpenWeatherMap API
     const response = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=imperial&appid=${OPENWEATHER_API_KEY}`
+      `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=imperial&appid=${apiKey}`
     );
 
     if (!response.ok) {
@@ -61,9 +80,15 @@ export async function getWeatherByGeolocation(lat: number, lon: number): Promise
 
 export async function getWeatherByZipcode(zipcode: string, country: string = "us"): Promise<WeatherData | null> {
   try {
+    const apiKey = getApiKey();
+    
+    if (!apiKey) {
+      throw new Error("OpenWeatherMap API key not found. Please set your API key first.");
+    }
+    
     // Use OpenWeatherMap API directly with zipcode
     const response = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?zip=${zipcode},${country}&units=imperial&appid=${OPENWEATHER_API_KEY}`
+      `https://api.openweathermap.org/data/2.5/weather?zip=${zipcode},${country}&units=imperial&appid=${apiKey}`
     );
 
     if (!response.ok) {

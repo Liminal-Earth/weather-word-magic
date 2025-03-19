@@ -1,20 +1,32 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import LocationInput from "@/components/LocationInput";
 import WeatherWord from "@/components/WeatherWord";
 import WeatherDetails from "@/components/WeatherDetails";
 import Footer from "@/components/Footer";
-import { WeatherData, getWeatherByZipcode, getWeatherByGeolocation, getBackgroundClass } from "@/services/weatherService";
+import { 
+  WeatherData, 
+  getWeatherByZipcode, 
+  getWeatherByGeolocation, 
+  getBackgroundClass,
+  hasApiKey,
+  saveApiKey
+} from "@/services/weatherService";
 import { generateWeatherWord } from "@/services/wordMappingService";
 import { initializeDictionary } from "@/services/dictionaryService";
-import { CloudSun } from "lucide-react";
+import { CloudSun, KeyRound } from "lucide-react";
 
 const Index = () => {
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [weatherWord, setWeatherWord] = useState<string>("");
   const [factorContributions, setFactorContributions] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState<boolean>(false);
+  const [apiKey, setApiKey] = useState<string>("");
+  const [showApiKeyInput, setShowApiKeyInput] = useState<boolean>(!hasApiKey());
   const { toast } = useToast();
 
   // Initialize dictionary when component mounts, but only once user interacts
@@ -42,6 +54,16 @@ const Index = () => {
     locationType: "zip" | "geo", 
     locationValue: string | {lat: number, lon: number}
   ) => {
+    if (!hasApiKey()) {
+      setShowApiKeyInput(true);
+      toast({
+        title: "API Key Required",
+        description: "Please enter your OpenWeatherMap API key first",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       let newWeatherData: WeatherData | null = null;
@@ -88,6 +110,19 @@ const Index = () => {
     fetchWeatherData("geo", { lat, lon });
   };
 
+  // Handle API key submission
+  const handleApiKeySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (apiKey.trim()) {
+      saveApiKey(apiKey.trim());
+      setShowApiKeyInput(false);
+      toast({
+        title: "Success",
+        description: "API key saved successfully. You can now fetch weather data.",
+      });
+    }
+  };
+
   // Determine background class based on weather condition
   const backgroundClass = weatherData 
     ? getBackgroundClass(weatherData.condition) 
@@ -109,36 +144,86 @@ const Index = () => {
         </header>
         
         <main className="flex-1 flex flex-col items-center justify-center gap-8 w-full max-w-2xl mx-auto">
-          <LocationInput 
-            onLocationSubmit={handleZipcodeSubmit}
-            onGeolocation={handleGeolocation}
-            isLoading={loading}
-          />
-          
-          {weatherData && (
+          {showApiKeyInput ? (
+            <div className="w-full max-w-md bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow">
+              <form onSubmit={handleApiKeySubmit} className="space-y-4">
+                <div className="flex flex-col gap-2">
+                  <h2 className="flex items-center gap-2 text-xl font-semibold">
+                    <KeyRound className="h-5 w-5" />
+                    OpenWeatherMap API Key
+                  </h2>
+                  <Alert>
+                    <AlertDescription>
+                      You need a free API key from OpenWeatherMap. 
+                      <a 
+                        href="https://home.openweathermap.org/users/sign_up" 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="text-blue-600 hover:underline ml-1"
+                      >
+                        Sign up here
+                      </a> 
+                      and then get your key from the API keys section.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    placeholder="Enter your API key"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button type="submit">Save</Button>
+                </div>
+              </form>
+            </div>
+          ) : (
             <>
-              <WeatherWord 
-                word={weatherWord} 
-                weatherData={weatherData}
-                factorContributions={factorContributions} 
+              <LocationInput 
+                onLocationSubmit={handleZipcodeSubmit}
+                onGeolocation={handleGeolocation}
+                isLoading={loading}
               />
               
-              <WeatherDetails weatherData={weatherData} />
+              <div className="text-right w-full">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowApiKeyInput(true)}
+                  className="text-xs"
+                >
+                  Change API Key
+                </Button>
+              </div>
+              
+              {weatherData && (
+                <>
+                  <WeatherWord 
+                    word={weatherWord} 
+                    weatherData={weatherData}
+                    factorContributions={factorContributions} 
+                  />
+                  
+                  <WeatherDetails weatherData={weatherData} />
+                </>
+              )}
+              
+              {!weatherData && !loading && (
+                <div className="text-center p-8 rounded-lg backdrop-blur-sm bg-white/30">
+                  <p className="text-gray-700">
+                    Enter your zipcode or use your current location to discover your weather word
+                  </p>
+                </div>
+              )}
+              
+              {loading && !weatherData && (
+                <div className="text-center p-8">
+                  <p className="text-gray-700 animate-pulse">Loading your weather data...</p>
+                </div>
+              )}
             </>
-          )}
-          
-          {!weatherData && !loading && (
-            <div className="text-center p-8 rounded-lg backdrop-blur-sm bg-white/30">
-              <p className="text-gray-700">
-                Enter your zipcode or use your current location to discover your weather word
-              </p>
-            </div>
-          )}
-          
-          {loading && !weatherData && (
-            <div className="text-center p-8">
-              <p className="text-gray-700 animate-pulse">Loading your weather data...</p>
-            </div>
           )}
         </main>
       </div>
