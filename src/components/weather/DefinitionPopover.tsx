@@ -103,15 +103,15 @@ const DefinitionPopover = ({ word }: DefinitionPopoverProps) => {
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Info className="h-4 w-4" />}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 text-left p-0">
-        <div className="p-4 border-b">
+      <PopoverContent className="w-80 text-left p-0 max-h-[400px] flex flex-col">
+        <div className="p-4 border-b shrink-0">
           <h3 className="font-medium">{word}</h3>
           {definition?.phonetic && (
             <p className="text-sm text-gray-500 mt-1">{definition.phonetic}</p>
           )}
         </div>
         
-        <ScrollArea className="h-[300px]">
+        <ScrollArea className="flex-1 max-h-[300px]">
           <div className="p-4 space-y-4">
             {isLoading && (
               <div className="flex items-center gap-2 py-2">

@@ -1,3 +1,4 @@
+
 import { WeatherData } from "./weatherService";
 import { getDictionary } from "./dictionaryService";
 import { 
@@ -80,8 +81,8 @@ function hashWeatherData(weatherData: WeatherData): number {
   const wind = Math.round(weatherData.windSpeed);
   const condition = mapConditionToValue(weatherData.condition);
   
-  // IMPORTANT: Remove time from the hash calculation to keep consistent words
-  // for the same weather conditions regardless of time of day
+  // Include time of day in the hash calculation
+  const timeOfDay = Math.round(getTimeOfDayValue() * 100);
   
   // Create a deterministic hash using the djb2 algorithm
   let hash = 5381;
@@ -91,6 +92,7 @@ function hashWeatherData(weatherData: WeatherData): number {
   hash = ((hash << 5) + hash) + humidity;
   hash = ((hash << 5) + hash) + wind;
   hash = ((hash << 5) + hash) + Math.round(condition * 100);
+  hash = ((hash << 5) + hash) + timeOfDay; // Add time to the hash calculation
   
   return hash;
 }
