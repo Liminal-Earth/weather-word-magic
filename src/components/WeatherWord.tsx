@@ -30,15 +30,17 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
   }, [word]);
   
   const handleFetchDefinition = async () => {
-    if (definition !== null) return;
+    if (loadingDefinition) return;
     
     setLoadingDefinition(true);
+    setDefinition(null);
+    
     try {
       const result = await fetchWordDefinition(word);
       setDefinition(result);
     } catch (error) {
       console.error("Error fetching definition:", error);
-      setDefinition(null);
+      setDefinition("Could not fetch the definition at this time.");
     } finally {
       setLoadingDefinition(false);
     }
@@ -84,13 +86,13 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
                 <PopoverContent className="w-80 text-left">
                   <div className="space-y-2">
                     <h3 className="font-medium">{word}</h3>
-                    {definition ? (
-                      <p className="text-sm text-gray-600">{definition}</p>
-                    ) : loadingDefinition ? (
+                    {loadingDefinition ? (
                       <div className="flex items-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm">Loading definition...</span>
+                        <span className="text-sm">Loading definition from Dictionary.com...</span>
                       </div>
+                    ) : definition ? (
+                      <p className="text-sm text-gray-600">{definition}</p>
                     ) : (
                       <p className="text-sm text-gray-600">
                         No definition found. This might be a rare or specialized word.

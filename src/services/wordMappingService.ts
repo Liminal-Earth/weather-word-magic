@@ -1,52 +1,43 @@
+
 import { WeatherData } from "./weatherService";
 import { getDictionary } from "./dictionaryService";
 import { 
   factorWeights, 
   mapConditionToValue, 
   getTimeOfDayValue, 
-  normalizeWeatherValues,
-  hasWeatherChangedSignificantly
+  normalizeWeatherValues
 } from "./weatherMappingUtils";
 import { getReliableWordsList } from "./definitionService";
 
-// Previous weather data to avoid regenerating words for similar conditions
-let lastWeatherData: WeatherData | null = null;
-let lastGeneratedWord: { word: string, factorContributions: Record<string, number> } | null = null;
-
-// Generate a word based on weather parameters with extreme sensitivity to changes
+/**
+ * Generate a word based on weather parameters.
+ * Each unique combination of weather values will ALWAYS generate the same word.
+ */
 export function generateWeatherWord(weatherData: WeatherData): { 
   word: string, 
   factorContributions: Record<string, number> 
 } {
-  // If we have a previously generated word and the weather hasn't changed significantly, return the same word
-  if (lastWeatherData && lastGeneratedWord && !hasWeatherChangedSignificantly(lastWeatherData, weatherData)) {
-    return lastGeneratedWord;
-  }
-  
-  // Get the dictionary of words (use the full dictionary, not just verified words)
+  // Get the dictionary of words
   const wordDictionary = getDictionary();
   
   if (!weatherData || wordDictionary.length === 0) {
     // If no dictionary is available yet, use our reliable words list
     const reliableWords = getReliableWordsList();
-    const randomIndex = Math.floor(Math.random() * reliableWords.length);
+    const hashValue = hashWeatherData(weatherData);
+    const index = Math.abs(hashValue) % reliableWords.length;
+    
     const result = { 
-      word: reliableWords[randomIndex], 
-      // Pressure removed from contributions
+      word: reliableWords[index], 
       factorContributions: { temperature: 0.30, humidity: 0.20, wind: 0.25, sky: 0.20, time: 0.05 } 
     };
-    
-    // Store for future reference
-    lastWeatherData = weatherData;
-    lastGeneratedWord = result;
     
     return result;
   }
 
-  // Get normalized weather values (0-1 scale) - pressure removed
+  // Get normalized weather values (0-1 scale)
   const rawFactors = normalizeWeatherValues(weatherData);
 
-  // Calculate weighted factor values - pressure removed
+  // Calculate weighted factor values
   const weightedFactors = {
     temperature: rawFactors.temperature * factorWeights.temperature,
     humidity: rawFactors.humidity * factorWeights.humidity,
@@ -55,60 +46,51 @@ export function generateWeatherWord(weatherData: WeatherData): {
     time: rawFactors.time * factorWeights.timeOfDay
   };
 
-  // Calculate total contribution (should be a positive value)
+  // Calculate total contribution
   const totalContribution = Object.values(weightedFactors).reduce((sum, val) => sum + Math.abs(val), 0);
   
-  // Calculate factor contributions as percentages (always positive values)
+  // Calculate factor contributions as percentages
   const factorContributions = Object.entries(weightedFactors).reduce((obj, [key, value]) => {
-    // Ensure we're using absolute values and proper percentages
     obj[key] = totalContribution > 0 ? Math.round((Math.abs(value) / totalContribution) * 100) / 100 : 0;
     return obj;
   }, {} as Record<string, number>);
 
-  // ENHANCED: Create a unique weather fingerprint that captures the exact values
-  // Each decimal place matters to create maximum variety
-  const uniqueWeatherFingerprint = 
-    (weatherData.temperature * 100) + 
-    (weatherData.humidity * 10) + 
-    (weatherData.windSpeed);
+  // Create a deterministic hash value from the weather data
+  const hashValue = hashWeatherData(weatherData);
   
-  // Create a pseudo-random value from the unique fingerprint
-  const hashValue = Math.sin(uniqueWeatherFingerprint) * 10000;
-  const randomOffset = (hashValue - Math.floor(hashValue));
+  // Use the hash to determine the word index
+  // We use absolute value and modulo to ensure we stay within array bounds
+  const index = Math.abs(hashValue) % wordDictionary.length;
   
-  // Calculate composite score with enhanced sensitivity
-  const compositeScore = (
-    (Object.values(weightedFactors).reduce((sum, val) => sum + val, 0) / 
-    Object.values(factorWeights).reduce((sum, val) => sum + val, 0))
-  );
-  
-  // Add location as a factor - use the string length for variation
-  const locationVariation = (weatherData.location.length % 10) / 100;
-  
-  // Add timestamp variation to ensure refreshes give different results
-  const timeVariation = (Date.now() % 10000) / 10000 * 0.1;
-  
-  // Combine everything to create a final score with high variability
-  let finalScore = (compositeScore * 0.5) + (randomOffset * 0.3) + locationVariation + timeVariation;
-  
-  // Ensure we get different indexes for different locations even with similar weather
-  finalScore = (finalScore + (locationVariation * 5)) % 1;
-  
-  // Normalize to ensure we stay within 0-1 range
-  const normalizedFinalScore = Math.max(0, Math.min(0.999, finalScore));
-  
-  // Use the sensitive final score to select a word
-  const index = Math.floor(normalizedFinalScore * wordDictionary.length);
-  const finalIndex = Math.max(0, Math.min(wordDictionary.length - 1, index));
-  
-  const result = { 
-    word: wordDictionary[finalIndex] || getReliableWordsList()[0],
+  return { 
+    word: wordDictionary[index],
     factorContributions
   };
+}
+
+/**
+ * Creates a numeric hash from weather data that will be consistent
+ * for the same weather conditions
+ */
+function hashWeatherData(weatherData: WeatherData): number {
+  if (!weatherData) return 0;
   
-  // Store for future reference
-  lastWeatherData = weatherData;
-  lastGeneratedWord = result;
+  // Round values to reasonable precision to ensure consistency
+  const temp = Math.round(weatherData.temperature);
+  const humidity = Math.round(weatherData.humidity);
+  const wind = Math.round(weatherData.windSpeed);
+  const condition = mapConditionToValue(weatherData.condition);
+  const time = Math.round(getTimeOfDayValue() * 24); // Hour of day (0-23)
   
-  return result;
+  // Create a deterministic hash using the djb2 algorithm
+  let hash = 5381;
+  
+  // Include each weather factor in the hash
+  hash = ((hash << 5) + hash) + temp;
+  hash = ((hash << 5) + hash) + humidity;
+  hash = ((hash << 5) + hash) + wind;
+  hash = ((hash << 5) + hash) + Math.round(condition * 100);
+  hash = ((hash << 5) + hash) + time;
+  
+  return hash;
 }

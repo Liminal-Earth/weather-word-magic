@@ -1,3 +1,4 @@
+
 import { WeatherData } from "./weatherService";
 
 // Factor weights determine how much each weather parameter influences the word selection
@@ -107,33 +108,4 @@ export function normalizeWeatherValues(weatherData: WeatherData) {
     sky: conditionValue,
     time: timeValue
   };
-}
-
-// Function to determine if weather has changed significantly - extremely sensitive to small changes
-export function hasWeatherChangedSignificantly(
-  oldData: WeatherData | null, 
-  newData: WeatherData
-): boolean {
-  if (!oldData) return true;
-  
-  // Check if location has changed
-  if (oldData.location !== newData.location) return true;
-  
-  // Any change at all should generate a new word, so no time threshold
-  
-  // Extremely sensitive thresholds for weather changes - any measurable difference matters
-  const tempDiff = Math.abs(newData.temperature - oldData.temperature);
-  if (tempDiff >= 1) return true; // Just 1 degree temperature change
-  
-  const humidityDiff = Math.abs(newData.humidity - oldData.humidity);
-  if (humidityDiff >= 1) return true; // Just 1% humidity change
-  
-  const windDiff = Math.abs(newData.windSpeed - oldData.windSpeed);
-  if (windDiff >= 1) return true; // Just 1 mph wind speed change
-  
-  const conditionChanged = newData.condition !== oldData.condition;
-  if (conditionChanged) return true;
-  
-  // If none of the above conditions are met, weather hasn't changed significantly
-  return false;
 }

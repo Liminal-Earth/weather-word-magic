@@ -1,12 +1,9 @@
 
 /**
- * Service for fetching word definitions from a public dictionary API
+ * Service for fetching word definitions directly from Dictionary.com
  */
 
-// Cache to store definitions we've already fetched
-const definitionCache: Record<string, string | null> = {};
-
-// List of reliable words with known definitions to use as fallback
+// List of reliable words with known definitions to use as fallback only when API fails
 const reliableWords = [
   { word: "serenity", definition: "The state of being calm, peaceful, and untroubled." },
   { word: "luminous", definition: "Full of or shedding light; bright or shining." },
@@ -20,101 +17,83 @@ const reliableWords = [
   { word: "enigmatic", definition: "Difficult to interpret or understand; mysterious." }
 ];
 
-// Preload the reliable words into our cache
-reliableWords.forEach(item => {
-  definitionCache[item.word] = item.definition;
-});
-
 /**
- * Fetch the definition of a word from a free public dictionary API
- * Uses Free Dictionary API: https://dictionaryapi.dev/
- * With fallback for network errors
+ * Fetch the definition directly from Dictionary.com
+ * This uses web scraping as Dictionary.com doesn't have a public API
  * 
- * IMPORTANT: This should ONLY be called when a user explicitly requests a definition,
- * not for batch processing or background verification
+ * IMPORTANT: This should ONLY be called when a user explicitly requests a definition
  */
 export async function fetchWordDefinition(word: string): Promise<string | null> {
-  // Check if we already have this definition cached
-  if (definitionCache[word] !== undefined) {
-    console.log(`Using cached definition for "${word}"`);
-    return definitionCache[word];
-  }
-
   try {
-    console.log(`Fetching definition for "${word}"...`);
+    console.log(`Fetching definition for "${word}" from Dictionary.com...`);
     
-    // First, check if it's in our reliable words list
+    // First, check if it's in our reliable words list (only as last resort)
     const reliableMatch = reliableWords.find(w => w.word.toLowerCase() === word.toLowerCase());
-    if (reliableMatch) {
-      definitionCache[word] = reliableMatch.definition;
-      return reliableMatch.definition;
-    }
     
-    // Fetch from Free Dictionary API with timeout
+    // Fetch from Dictionary.com with timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
     
     const response = await fetch(
-      `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`,
+      `https://www.dictionary.com/browse/${encodeURIComponent(word)}`,
       { signal: controller.signal }
     );
     clearTimeout(timeoutId);
     
     if (!response.ok) {
-      if (response.status === 404) {
-        // Word not found in dictionary
-        console.log(`No definition found for "${word}"`);
-        definitionCache[word] = null;
-        return null;
-      }
-      throw new Error(`API responded with status: ${response.status}`);
+      console.log(`No definition found for "${word}" on Dictionary.com`);
+      return reliableMatch?.definition || null;
     }
     
-    const data = await response.json();
+    const html = await response.text();
     
-    if (Array.isArray(data) && data.length > 0) {
-      // Extract the first definition
-      const firstEntry = data[0];
-      if (firstEntry.meanings && firstEntry.meanings.length > 0) {
-        const firstMeaning = firstEntry.meanings[0];
-        if (firstMeaning.definitions && firstMeaning.definitions.length > 0) {
-          const definition = firstMeaning.definitions[0].definition;
-          // Cache the definition for future requests
-          definitionCache[word] = definition;
-          console.log(`Definition found for "${word}": ${definition}`);
-          return definition;
-        }
-      }
+    // Extract the definition using regex pattern matching
+    // Looking for the primary definition in Dictionary.com's HTML structure
+    const definitionRegex = /<span class="one-click-content css-nnyc96 e1q3nk1v1">([^<]+)<\/span>/;
+    const match = html.match(definitionRegex);
+    
+    if (match && match[1]) {
+      const definition = match[1].trim();
+      console.log(`Definition found for "${word}": ${definition}`);
+      return definition;
     }
     
-    // If we couldn't find a good definition format, cache as null
-    console.log(`Unexpected response format for "${word}"`);
-    definitionCache[word] = null;
+    // Try alternate pattern if the first one fails
+    const altRegex = /<div class="css-10n32it e1hk9ate0">([^<]+)<\/div>/;
+    const altMatch = html.match(altRegex);
+    
+    if (altMatch && altMatch[1]) {
+      const definition = altMatch[1].trim();
+      console.log(`Definition found (alt method) for "${word}": ${definition}`);
+      return definition;
+    }
+    
+    // If extraction fails but page loaded, return a generic message
+    if (html.includes(`>${word}<`)) {
+      return `This word exists in Dictionary.com but we couldn't extract the definition.`;
+    }
+    
+    // If all else fails, use reliable words as fallback
+    if (reliableMatch) {
+      return reliableMatch.definition;
+    }
+    
     return null;
   } catch (error) {
     console.error(`Error fetching definition for '${word}':`, error);
-    // For network errors, check if we have reliable words that are similar
-    const firstChar = word.charAt(0).toLowerCase();
-    const similarReliableWords = reliableWords.filter(w => 
-      w.word.charAt(0).toLowerCase() === firstChar
-    );
     
-    if (similarReliableWords.length > 0) {
-      // Use a similar reliable word instead
-      const alternative = similarReliableWords[0];
-      console.log(`Using alternative reliable word "${alternative.word}" instead of "${word}"`);
-      return alternative.definition;
+    // For network errors, check if we have reliable words that match
+    const reliableMatch = reliableWords.find(w => w.word.toLowerCase() === word.toLowerCase());
+    if (reliableMatch) {
+      return reliableMatch.definition;
     }
     
-    // If all else fails, use a default reliable word
-    const defaultWord = reliableWords[0];
-    console.log(`Using default reliable word "${defaultWord.word}" instead of "${word}"`);
-    return defaultWord.definition;
+    return null;
   }
 }
 
 /**
- * Get a list of words that are guaranteed to have definitions
+ * Get a list of words that are guaranteed to have definitions - used only as fallback
  */
 export function getReliableWordsList(): string[] {
   return reliableWords.map(item => item.word);
