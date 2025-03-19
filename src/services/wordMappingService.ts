@@ -1,5 +1,3 @@
-
-
 import { WeatherData } from "./weatherService";
 import { getDictionary } from "./dictionaryService";
 import { 
