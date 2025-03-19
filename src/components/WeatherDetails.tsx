@@ -1,7 +1,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { WeatherData, getWeatherIconUrl } from "@/services/weatherService";
-import { Thermometer, Droplets, Wind, Clock } from "lucide-react";
+import { Thermometer, Droplets, Wind, Clock, Umbrella, Cloud } from "lucide-react";
 
 interface WeatherDetailsProps {
   weatherData: WeatherData;
@@ -43,6 +43,10 @@ const WeatherDetails = ({ weatherData }: WeatherDetailsProps) => {
             <div className="flex items-center gap-2">
               <Wind className="h-4 w-4 text-gray-500" />
               <span className="text-sm">Wind {weatherData.windSpeed} mph</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Cloud className="h-4 w-4 text-gray-500" />
+              <span className="text-sm">Clouds {weatherData.clouds}%</span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-gray-500" />
