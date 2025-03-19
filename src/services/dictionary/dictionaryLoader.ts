@@ -1,92 +1,63 @@
 
-// DictionaryLoader service responsible for loading the dictionary from external sources
-import { getReliableWordsList } from '../definitionService';
-import { getFallbackDictionary } from './fallbackDictionary';
+// This file manages loading and accessing the dictionary of words
+// The dictionary is loaded asynchronously and then made available globally
 
-// Store the dictionary of words
-let wordDictionary: string[] = [];
-// Track if we've already initialized the dictionary
-let isDictionaryInitialized = false;
-// Flag to track if initialization has been requested
-let initializationRequested = false;
+import { getReliableWordsList } from "../definitionService";
+
+// Initialize with empty array
+let dictionary: string[] = [];
 
 /**
- * Initialize the dictionary with many words from an external source
+ * Initialize the dictionary by fetching words from a source or using fallback
  */
-export async function initializeDictionary(): Promise<string[]> {
-  // If already initialized or in progress, don't start again
-  if (isDictionaryInitialized || initializationRequested) {
-    return wordDictionary.length > 0 ? wordDictionary : getReliableWordsList();
-  }
-  
-  // Mark that initialization has been requested to prevent duplicate calls
-  initializationRequested = true;
-  
+export async function initializeDictionary(): Promise<void> {
   try {
-    // Fetch a large dictionary of English words from a public API
-    const response = await fetch(
-      "https://raw.githubusercontent.com/dwyl/english-words/master/words_dictionary.json"
-    );
+    // Try to fetch dictionary from a word list
+    const response = await fetch('https://raw.githubusercontent.com/dariusk/corpora/master/data/words/common.json');
     
     if (!response.ok) {
-      throw new Error("Failed to fetch dictionary");
+      throw new Error('Failed to fetch dictionary');
     }
     
     const data = await response.json();
     
-    // Convert the object keys to an array of words
-    wordDictionary = Object.keys(data)
-      // Filter out very short words
-      .filter(word => word.length > 3 && word.length < 12)
-      // Filter out words that are likely not suitable (proper nouns, abbreviations, etc.)
-      .filter(word => /^[a-z]+$/.test(word))
-      // Limit to a reasonable number that's still very large
-      .slice(0, 15000);
+    // Extract words from the response (expected format: { "commonWords": ["word1", "word2", ...] })
+    let words: string[] = data.commonWords || [];
     
-    console.log(`Dictionary initialized with ${wordDictionary.length} words`);
+    // Filter words to only include those with 4+ characters and remove any special characters
+    words = words.filter((word: string) => 
+      word.length >= 4 && 
+      /^[a-zA-Z]+$/.test(word) && 
+      !word.includes("'")
+    );
     
-    // Set the initialized flag
-    isDictionaryInitialized = true;
+    // Shuffle the array to ensure diverse selection
+    dictionary = shuffleArray(words);
     
-    return wordDictionary;
+    console.info(`Dictionary initialized with ${dictionary.length} words`);
   } catch (error) {
-    console.error("Error initializing dictionary:", error);
-    // Fallback to a smaller set of interesting words if fetch fails
-    wordDictionary = getFallbackDictionary();
-    console.log(`Using fallback dictionary with ${wordDictionary.length} words`);
-    
-    // We're done initializing, even though it was with fallback data
-    isDictionaryInitialized = true;
-    
-    return wordDictionary;
+    console.error('Error initializing dictionary:', error);
+    // Fallback to our reliable words list if fetch fails
+    dictionary = shuffleArray(getReliableWordsList());
+    console.info(`Using fallback dictionary with ${dictionary.length} words`);
   }
 }
 
 /**
- * Get the current dictionary or initialize if empty
+ * Shuffle array using Fisher-Yates algorithm 
  */
-export function getDictionary(): string[] {
-  // Use the full dictionary of words when available
-  if (wordDictionary.length > 0) {
-    return wordDictionary;
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-  
-  // If not initialized yet, start initialization process but return reliable words
-  if (!isDictionaryInitialized && !initializationRequested) {
-    // Schedule initialization with a delay to avoid immediate execution
-    setTimeout(() => {
-      if (!initializationRequested) {
-        initializeDictionary();
-      }
-    }, 3000);
-  }
-  
-  // Fallback to reliable words if no dictionary yet
-  return getReliableWordsList();
+  return shuffled;
 }
 
-// Start loading the dictionary but with a significant delay to avoid immediate API calls
-setTimeout(() => {
-  // We'll initialize when the user first interacts with the app
-  // This will be triggered when they request weather data
-}, 5000);
+/**
+ * Get the current dictionary
+ */
+export function getDictionary(): string[] {
+  return dictionary;
+}
