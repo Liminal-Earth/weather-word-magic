@@ -27,9 +27,6 @@ export async function fetchWordDefinition(word: string): Promise<string | null> 
   try {
     console.log(`Fetching definition for "${word}" from Dictionary.com...`);
     
-    // First, check if it's in our reliable words list (only as last resort)
-    const reliableMatch = reliableWords.find(w => w.word.toLowerCase() === word.toLowerCase());
-    
     // Fetch from Dictionary.com with timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
@@ -41,16 +38,19 @@ export async function fetchWordDefinition(word: string): Promise<string | null> 
     clearTimeout(timeoutId);
     
     if (!response.ok) {
-      console.log(`No definition found for "${word}" on Dictionary.com`);
+      console.log(`No definition found for "${word}" on Dictionary.com (HTTP ${response.status})`);
+      // Only use reliable words as a last resort if they happen to match
+      const reliableMatch = reliableWords.find(w => w.word.toLowerCase() === word.toLowerCase());
       return reliableMatch?.definition || null;
     }
     
     const html = await response.text();
+    console.log(`Received HTML response for "${word}", parsing definition...`);
     
-    // Extract the definition using regex pattern matching
-    // Looking for the primary definition in Dictionary.com's HTML structure
-    const definitionRegex = /<span class="one-click-content css-nnyc96 e1q3nk1v1">([^<]+)<\/span>/;
-    const match = html.match(definitionRegex);
+    // Try multiple regex patterns to find definitions
+    // Pattern 1: Look for one-click-content spans (primary pattern)
+    let definitionRegex = /<span class="one-click-content css-[a-z0-9]+ e1q3nk1v1">([^<]+)<\/span>/;
+    let match = html.match(definitionRegex);
     
     if (match && match[1]) {
       const definition = match[1].trim();
@@ -58,22 +58,47 @@ export async function fetchWordDefinition(word: string): Promise<string | null> 
       return definition;
     }
     
-    // Try alternate pattern if the first one fails
-    const altRegex = /<div class="css-10n32it e1hk9ate0">([^<]+)<\/div>/;
-    const altMatch = html.match(altRegex);
+    // Pattern 2: Try alternate pattern with div.css-10n32it
+    definitionRegex = /<div class="css-[a-z0-9]+ e1hk9ate0">([^<]+)<\/div>/;
+    match = html.match(definitionRegex);
     
-    if (altMatch && altMatch[1]) {
-      const definition = altMatch[1].trim();
-      console.log(`Definition found (alt method) for "${word}": ${definition}`);
+    if (match && match[1]) {
+      const definition = match[1].trim();
+      console.log(`Definition found (alt method 1) for "${word}": ${definition}`);
       return definition;
     }
     
-    // If extraction fails but page loaded, return a generic message
-    if (html.includes(`>${word}<`)) {
-      return `This word exists in Dictionary.com but we couldn't extract the definition.`;
+    // Pattern 3: More generic approach
+    definitionRegex = /<span[^>]*class="[^"]*one-click-content[^"]*"[^>]*>([^<]+)<\/span>/;
+    match = html.match(definitionRegex);
+    
+    if (match && match[1]) {
+      const definition = match[1].trim();
+      console.log(`Definition found (alt method 2) for "${word}": ${definition}`);
+      return definition;
     }
     
-    // If all else fails, use reliable words as fallback
+    // Pattern 4: Most generic approach - looking for definition sections
+    definitionRegex = /<div[^>]*class="[^"]*definition[^"]*"[^>]*>(.*?)<\/div>/;
+    match = html.match(definitionRegex);
+    
+    if (match && match[1]) {
+      // Clean up HTML tags from the definition
+      const definition = match[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      console.log(`Definition found (alt method 3) for "${word}": ${definition}`);
+      return definition;
+    }
+    
+    // If extraction fails but page loaded, check for the word in the title
+    if (html.includes(`>${word}<`) || html.toLowerCase().includes(`>${word.toLowerCase()}<`)) {
+      console.log(`Word "${word}" found on page but couldn't extract definition`);
+      return `This word exists in Dictionary.com but we couldn't extract the definition due to page structure changes.`;
+    }
+    
+    console.log(`No definition patterns matched for "${word}"`);
+    
+    // As a last resort, use reliable words if they match
+    const reliableMatch = reliableWords.find(w => w.word.toLowerCase() === word.toLowerCase());
     if (reliableMatch) {
       return reliableMatch.definition;
     }
@@ -82,7 +107,7 @@ export async function fetchWordDefinition(word: string): Promise<string | null> 
   } catch (error) {
     console.error(`Error fetching definition for '${word}':`, error);
     
-    // For network errors, check if we have reliable words that match
+    // For network errors, try the reliable words as a last resort
     const reliableMatch = reliableWords.find(w => w.word.toLowerCase() === word.toLowerCase());
     if (reliableMatch) {
       return reliableMatch.definition;

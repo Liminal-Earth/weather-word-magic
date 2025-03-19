@@ -18,6 +18,7 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
   const [fadeIn, setFadeIn] = useState(false);
   const [definition, setDefinition] = useState<string | null>(null);
   const [loadingDefinition, setLoadingDefinition] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
   
   useEffect(() => {
     setFadeIn(false);
@@ -36,13 +37,23 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
     setDefinition(null);
     
     try {
+      console.log("Requesting definition for word:", word);
       const result = await fetchWordDefinition(word);
+      console.log("Definition result:", result);
       setDefinition(result);
     } catch (error) {
       console.error("Error fetching definition:", error);
       setDefinition("Could not fetch the definition at this time.");
     } finally {
       setLoadingDefinition(false);
+    }
+  };
+  
+  // Fetch definition when popover opens
+  const handlePopoverOpenChange = (open: boolean) => {
+    setPopoverOpen(open);
+    if (open && !definition && !loadingDefinition) {
+      handleFetchDefinition();
     }
   };
   
@@ -67,10 +78,9 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
               <p className="font-serif text-5xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-gray-800 mb-2">
                 {word}
               </p>
-              <Popover>
+              <Popover open={popoverOpen} onOpenChange={handlePopoverOpenChange}>
                 <PopoverTrigger asChild>
                   <Button 
-                    onClick={handleFetchDefinition} 
                     variant="ghost" 
                     size="icon" 
                     className="rounded-full mt-1 h-8 w-8" 
