@@ -25,182 +25,279 @@ const reliableWords = [
  */
 export async function fetchWordDefinition(word: string): Promise<string | null> {
   try {
-    console.log(`Fetching definition for "${word}" from Dictionary.com...`);
+    console.log(`Starting definition fetch for "${word}"...`);
+    
+    // First check if it's in our reliable words list
+    const reliableMatch = reliableWords.find(w => w.word.toLowerCase() === word.toLowerCase());
+    if (reliableMatch) {
+      console.log(`Found reliable definition for "${word}"`);
+      return reliableMatch.definition;
+    }
     
     // Use a CORS proxy to avoid cross-origin issues
-    // We'll use the allorigins.win service which is free and reliable for this purpose
+    // Using allorigins.win which is a public CORS proxy service
     const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.dictionary.com/browse/${encodeURIComponent(word)}`)}`;
     
-    // Fetch from Dictionary.com with timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
     console.log(`Sending request through proxy: ${proxyUrl}`);
+    
+    // Fetch with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
     const response = await fetch(proxyUrl, { signal: controller.signal });
     clearTimeout(timeoutId);
     
     if (!response.ok) {
-      console.log(`No definition found for "${word}" (HTTP ${response.status})`);
-      // Only use reliable words as a last resort if they happen to match
-      const reliableMatch = reliableWords.find(w => w.word.toLowerCase() === word.toLowerCase());
-      return reliableMatch?.definition || null;
+      console.log(`Failed to fetch from Dictionary.com for "${word}" (HTTP ${response.status})`);
+      return "No definition available for this word.";
     }
     
+    // Get the HTML content
     const html = await response.text();
-    console.log(`Received HTML response for "${word}" (${html.length} bytes), parsing definition...`);
+    console.log(`Received HTML for "${word}" (${html.length} bytes)`);
     
-    // Extract a small portion of HTML for debugging
-    const sampleHtml = html.substring(0, 300) + "...";
-    console.log(`Sample HTML: ${sampleHtml}`);
-
-    // First, check if we're on a "no exact match found" page
-    if (html.includes("No exact matches found for") || html.includes("No results found for")) {
-      console.log(`Dictionary.com has no exact match for "${word}"`);
-      
-      // Return fallback if available
-      const reliableMatch = reliableWords.find(w => w.word.toLowerCase() === word.toLowerCase());
-      return reliableMatch?.definition || null;
+    // Check if we're on a "no results" page
+    if (html.includes("No results found") || html.includes("No exact matches found")) {
+      console.log(`Dictionary.com has no results for "${word}"`);
+      return "No definition found for this word.";
     }
     
-    // Modern Dictionary.com patterns (2023-2024)
+    // Extract a short section for debugging
+    const sample = html.substring(0, 200).replace(/\n/g, ' ');
+    console.log(`HTML sample: ${sample}...`);
     
-    // Find the meaning section
-    const meaningSection = html.match(/<section[^>]*class="[^"]*css-[^"]*"[^>]*>[\s\S]*?<\/section>/g);
-    if (meaningSection && meaningSection[0]) {
-      console.log("Found meaning section, extracting definition...");
-      
-      // Look for definition inside the meaning section
-      // Pattern 1: Direct definition spans
-      let defMatch = meaningSection[0].match(/<span[^>]*class="[^"]*one-click-content[^"]*"[^>]*>([\s\S]*?)<\/span>/);
-      
-      if (defMatch && defMatch[1]) {
-        const definition = defMatch[1].trim().replace(/\s+/g, ' ');
-        console.log(`Definition found (method 1): ${definition}`);
-        return definition;
-      }
-      
-      // Pattern 2: Definition value spans
-      defMatch = meaningSection[0].match(/<span[^>]*data-testid="[^"]*def-value[^"]*"[^>]*>([\s\S]*?)<\/span>/);
-      
-      if (defMatch && defMatch[1]) {
-        const definition = defMatch[1].trim().replace(/\s+/g, ' ');
-        console.log(`Definition found (method 2): ${definition}`);
-        return definition;
-      }
-      
-      // Pattern 3: Luna definition spans (newer format)
-      defMatch = meaningSection[0].match(/<span[^>]*data-luna-word[^>]*>([\s\S]*?)<\/span>/);
-      
-      if (defMatch && defMatch[1]) {
-        const definition = defMatch[1].trim().replace(/\s+/g, ' ');
-        console.log(`Definition found (method 3): ${definition}`);
-        return definition;
-      }
-      
-      // Pattern 4: First paragraph in definition section
-      defMatch = meaningSection[0].match(/<p[^>]*>([\s\S]*?)<\/p>/);
-      
-      if (defMatch && defMatch[1]) {
-        const rawDef = defMatch[1];
-        const definition = rawDef.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-        if (definition.length > 10) {
-          console.log(`Definition found (method 4): ${definition}`);
-          return definition;
-        }
-      }
+    // **************************************************************************
+    // MULTIPLE DEFINITION EXTRACTION METHODS - trying various patterns to be robust
+    // **************************************************************************
+    
+    // APPROACH 1: Meta description often contains the definition
+    const metaDescription = extractMetaDescription(html);
+    if (metaDescription) {
+      console.log(`Definition found via meta: ${metaDescription}`);
+      return metaDescription;
     }
     
-    // Pattern 5: Look for definitions in any section with key classnames
-    const defSectionMatch = html.match(/<div[^>]*class="[^"]*css-[^"]*"[^>]*data-type="word-definitions?[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
-    
-    if (defSectionMatch && defSectionMatch[1]) {
-      console.log("Found definition section by data-type");
-      const section = defSectionMatch[1];
-      
-      const contentMatch = section.match(/<div[^>]*>([\s\S]*?)<\/div>/);
-      if (contentMatch && contentMatch[1]) {
-        const definition = contentMatch[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-        if (definition.length > 10) {
-          console.log(`Definition found (method 5): ${definition}`);
-          return definition;
-        }
-      }
+    // APPROACH 2: Extract definition from meaning section
+    const meaningDefinition = extractFromMeaningSection(html);
+    if (meaningDefinition) {
+      console.log(`Definition found via meaning section: ${meaningDefinition}`);
+      return meaningDefinition;
     }
     
-    // Pattern 6: Last resort - search for any element with a definition role
-    const defRoleMatch = html.match(/<[^>]*role="definition"[^>]*>([\s\S]*?)<\/[^>]*>/i);
-    
-    if (defRoleMatch && defRoleMatch[1]) {
-      const definition = defRoleMatch[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-      if (definition.length > 10) {
-        console.log(`Definition found (method 6): ${definition}`);
-        return definition;
-      }
+    // APPROACH 3: Look for specific definition elements
+    const specificDefinition = extractFromDefinitionElements(html);
+    if (specificDefinition) {
+      console.log(`Definition found via specific elements: ${specificDefinition}`);
+      return specificDefinition;
     }
     
-    // Pattern 7: Look for any "description" meta tag (might contain definition)
-    const metaDescMatch = html.match(/<meta[^>]*name="description"[^>]*content="([^"]*)"[^>]*>/i);
-    
-    if (metaDescMatch && metaDescMatch[1]) {
-      const metaDesc = metaDescMatch[1].trim();
-      // Check if meta description contains actual definition and not just site info
-      if (metaDesc.length > 20 && !metaDesc.startsWith("Dictionary.com") && !metaDesc.includes("definition of")) {
-        console.log(`Definition found (method 7): ${metaDesc}`);
-        return metaDesc;
-      }
+    // APPROACH 4: Look for paragraphs that might contain definitions
+    const paragraphDefinition = extractFromParagraphs(html, word);
+    if (paragraphDefinition) {
+      console.log(`Definition found via paragraphs: ${paragraphDefinition}`);
+      return paragraphDefinition;
     }
     
-    // If extraction fails but page loaded, try to extract any meaningful content
-    // that might be a definition
-    if (html.includes(`>${word}</`) || html.toLowerCase().includes(`>${word.toLowerCase()}</`)) {
-      console.log(`Word "${word}" found on page but couldn't extract definition with standard patterns`);
-      
-      // Try to extract any sentence with the word first, as it might be a definition
-      const sentencesWithWord = [];
-      const sentenceRegex = /[^.!?]+[.!?]+/g;
-      const lowerHtml = html.toLowerCase();
-      const lowerWord = word.toLowerCase();
-      
-      let sentence;
-      while ((sentence = sentenceRegex.exec(lowerHtml)) !== null) {
-        if (sentence[0].includes(lowerWord)) {
-          const cleanSentence = sentence[0].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-          if (cleanSentence.length > 15 && cleanSentence.length < 200) {
-            sentencesWithWord.push(cleanSentence);
-          }
-        }
-      }
-      
-      if (sentencesWithWord.length > 0) {
-        console.log(`Found ${sentencesWithWord.length} sentences with the word, using first as definition`);
-        return sentencesWithWord[0];
-      }
-      
-      return `This word exists in Dictionary.com but we couldn't extract its definition due to page structure changes.`;
+    // APPROACH 5: Fallback - try to extract any reasonable text
+    const fallbackDefinition = extractFallbackDefinition(html, word);
+    if (fallbackDefinition) {
+      console.log(`Definition found via fallback: ${fallbackDefinition}`);
+      return fallbackDefinition;
     }
     
-    console.log(`No definition patterns matched for "${word}"`);
+    console.log(`All extraction methods failed for "${word}"`);
+    return "We found this word in Dictionary.com but couldn't extract its definition.";
     
-    // As a last resort, use reliable words if they match
-    const reliableMatch = reliableWords.find(w => w.word.toLowerCase() === word.toLowerCase());
-    if (reliableMatch) {
-      console.log(`Using reliable fallback definition for "${word}"`);
-      return reliableMatch.definition;
-    }
-    
-    return null;
   } catch (error) {
     console.error(`Error fetching definition for '${word}':`, error);
+    return "An error occurred while fetching the definition.";
+  }
+}
+
+// Helper function to extract meta description
+function extractMetaDescription(html: string): string | null {
+  // Meta descriptions often contain a concise definition
+  const metaMatch = html.match(/<meta[^>]*name="description"[^>]*content="([^"]*)"[^>]*>/i);
+  if (metaMatch && metaMatch[1]) {
+    const meta = metaMatch[1].trim();
     
-    // For network errors, try the reliable words as a last resort
-    const reliableMatch = reliableWords.find(w => w.word.toLowerCase() === word.toLowerCase());
-    if (reliableMatch) {
-      console.log(`Using reliable fallback definition after error for "${word}"`);
-      return reliableMatch.definition;
+    // Ignore meta descriptions that are just about Dictionary.com
+    if (meta.length > 20 && 
+        !meta.startsWith("Dictionary.com") && 
+        !meta.includes("the world's favorite") &&
+        !meta.includes("definition at Dictionary.com")) {
+      return meta;
+    }
+  }
+  return null;
+}
+
+// Helper function to extract from meaning sections
+function extractFromMeaningSection(html: string): string | null {
+  // Method 1: Try to find definition in a section with meaning class
+  const sectionMatch = html.match(/<section[^>]*class="[^"]*css-[^"]*"[^>]*>([\s\S]*?)<\/section>/g);
+  if (sectionMatch) {
+    for (const section of sectionMatch) {
+      // Look for definition spans inside the section
+      const defMatch = section.match(/<span[^>]*class="[^"]*one-click-content[^"]*"[^>]*>([\s\S]*?)<\/span>/);
+      if (defMatch && defMatch[1]) {
+        const definition = cleanHtml(defMatch[1]);
+        if (isValidDefinition(definition)) {
+          return definition;
+        }
+      }
+      
+      // Try an alternative pattern for definitions
+      const alt1Match = section.match(/<span[^>]*data-testid="[^"]*def-value[^"]*"[^>]*>([\s\S]*?)<\/span>/);
+      if (alt1Match && alt1Match[1]) {
+        const definition = cleanHtml(alt1Match[1]);
+        if (isValidDefinition(definition)) {
+          return definition;
+        }
+      }
+      
+      // Try another pattern that's been observed in Dictionary.com
+      const alt2Match = section.match(/<p[^>]*class="[^"]*css-[^"]*"[^>]*>([\s\S]*?)<\/p>/);
+      if (alt2Match && alt2Match[1]) {
+        const definition = cleanHtml(alt2Match[1]);
+        if (isValidDefinition(definition)) {
+          return definition;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// Helper function to extract from specific definition elements
+function extractFromDefinitionElements(html: string): string | null {
+  // Method 1: Data attributes for definitions
+  const dataDefMatch = html.match(/<div[^>]*data-type="word-definitions?"[^>]*>([\s\S]*?)<\/div>/i);
+  if (dataDefMatch && dataDefMatch[1]) {
+    const cleaned = cleanHtml(dataDefMatch[1]);
+    if (isValidDefinition(cleaned)) {
+      return cleaned;
+    }
+  }
+  
+  // Method 2: Role attributes for definitions
+  const roleMatch = html.match(/<[^>]*role="definition"[^>]*>([\s\S]*?)<\/[^>]*>/i);
+  if (roleMatch && roleMatch[1]) {
+    const cleaned = cleanHtml(roleMatch[1]);
+    if (isValidDefinition(cleaned)) {
+      return cleaned;
+    }
+  }
+  
+  // Method 3: Luna word attributes (seen in newer Dictionary.com layouts)
+  const lunaMatch = html.match(/<span[^>]*data-luna-word[^>]*>([\s\S]*?)<\/span>/);
+  if (lunaMatch && lunaMatch[1]) {
+    const cleaned = cleanHtml(lunaMatch[1]);
+    if (isValidDefinition(cleaned)) {
+      return cleaned;
+    }
+  }
+  
+  return null;
+}
+
+// Helper function to extract from paragraphs
+function extractFromParagraphs(html: string, word: string): string | null {
+  // Look for paragraphs that might contain definitions
+  const paragraphMatches = html.match(/<p[^>]*>([\s\S]*?)<\/p>/g);
+  if (paragraphMatches) {
+    const cleanedParagraphs = paragraphMatches.map(p => {
+      // Extract text content and clean it
+      const textMatch = p.match(/<p[^>]*>([\s\S]*?)<\/p>/);
+      return textMatch ? cleanHtml(textMatch[1]) : '';
+    }).filter(p => isValidDefinition(p));
+    
+    // Try to find paragraphs that mention the word itself
+    const relevantParagraphs = cleanedParagraphs.filter(p => 
+      p.toLowerCase().includes(word.toLowerCase()));
+    
+    if (relevantParagraphs.length > 0) {
+      return relevantParagraphs[0];
     }
     
-    return null;
+    // If no paragraphs mention the word, use the first reasonable paragraph
+    if (cleanedParagraphs.length > 0) {
+      return cleanedParagraphs[0];
+    }
   }
+  return null;
+}
+
+// Helper function for fallback extraction
+function extractFallbackDefinition(html: string, word: string): string | null {
+  // Look for any text that might be a definition
+  const sentences = extractSentences(html);
+  
+  // Filter sentences that might be definitions
+  const possibleDefinitions = sentences.filter(s => 
+    // Reasonable length for a definition
+    s.length > 15 && s.length < 300 &&
+    // Not something that's probably navigation text
+    !s.includes('Dictionary.com') &&
+    !s.includes('Sign up') &&
+    !s.includes('Log in') &&
+    // Not a heading about parts of speech
+    !/^(noun|verb|adjective|adverb)[.:]?$/i.test(s)
+  );
+  
+  // First try sentences containing the word
+  const withWord = possibleDefinitions.filter(s => 
+    s.toLowerCase().includes(word.toLowerCase()));
+  
+  if (withWord.length > 0) {
+    return withWord[0];
+  }
+  
+  // If no good sentences with the word, use the first decent one
+  if (possibleDefinitions.length > 0) {
+    return possibleDefinitions[0];
+  }
+  
+  return null;
+}
+
+// Helper function to extract sentences from HTML
+function extractSentences(html: string): string[] {
+  // Strip HTML tags to get only text
+  const textOnly = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  
+  // Split into sentences
+  const sentenceRegex = /[^.!?]+[.!?]+/g;
+  const sentences: string[] = [];
+  
+  let match;
+  while ((match = sentenceRegex.exec(textOnly)) !== null) {
+    const sentence = match[0].trim();
+    if (sentence.length > 10) { // Skip very short fragments
+      sentences.push(sentence);
+    }
+  }
+  
+  return sentences;
+}
+
+// Helper function to clean HTML content
+function cleanHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, ' ') // Remove HTML tags
+    .replace(/&[^;]+;/g, ' ') // Remove HTML entities
+    .replace(/\s+/g, ' ')     // Normalize whitespace
+    .trim();
+}
+
+// Helper function to validate a potential definition
+function isValidDefinition(text: string): boolean {
+  return text.length > 10 && // Reasonable minimum length
+         text.length < 500 && // Not too long
+         !/^(noun|verb|adjective|adverb)[.:]?$/i.test(text) && // Not just a part of speech
+         !text.includes('Dictionary.com') && // Not site info
+         !text.includes('Sign up') && // Not UI text
+         !text.includes('Log in'); // Not UI text
 }
 
 /**

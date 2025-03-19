@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { WeatherData } from "@/services/weatherService";
@@ -18,10 +19,12 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
   const [definition, setDefinition] = useState<string | null>(null);
   const [loadingDefinition, setLoadingDefinition] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   useEffect(() => {
     setFadeIn(false);
     setDefinition(null);
+    setErrorMessage(null);
     const timer = setTimeout(() => {
       setFadeIn(true);
     }, 100);
@@ -33,21 +36,23 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
     if (loadingDefinition) return;
     
     setLoadingDefinition(true);
+    setErrorMessage(null);
     setDefinition(null);
     
     try {
       console.log("Requesting definition for word:", word);
+      
       const result = await fetchWordDefinition(word);
       console.log("Definition result:", result);
       
       if (result) {
         setDefinition(result);
       } else {
-        setDefinition("No definition found for this word.");
+        setErrorMessage("No definition found for this word.");
       }
     } catch (error) {
       console.error("Error fetching definition:", error);
-      setDefinition("Could not fetch the definition at this time.");
+      setErrorMessage("Could not fetch the definition at this time.");
     } finally {
       setLoadingDefinition(false);
     }
@@ -103,8 +108,10 @@ const WeatherWord = ({ word, weatherData, factorContributions }: WeatherWordProp
                     {loadingDefinition ? (
                       <div className="flex items-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm">Loading definition from Dictionary.com...</span>
+                        <span className="text-sm">Loading definition...</span>
                       </div>
+                    ) : errorMessage ? (
+                      <p className="text-sm text-gray-600">{errorMessage}</p>
                     ) : definition ? (
                       <p className="text-sm text-gray-600">{definition}</p>
                     ) : (
