@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Info, ExternalLink, Loader2 } from "lucide-react";
@@ -34,20 +34,7 @@ const DefinitionPopover = ({ word }: DefinitionPopoverProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Reset definition when word changes
-  useEffect(() => {
-    if (word) {
-      setDefinition(null);
-      setError(null);
-      
-      // If popover is already open, fetch the new definition
-      if (popoverOpen) {
-        fetchDefinition();
-      }
-    }
-  }, [word]);
-  
-  const fetchDefinition = async () => {
+  const fetchDefinition = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
@@ -73,8 +60,21 @@ const DefinitionPopover = ({ word }: DefinitionPopoverProps) => {
     } finally {
       setIsLoading(false);
     }
-  };
-
+  }, [word]);
+  
+  // Reset definition when word changes
+  useEffect(() => {
+    if (word) {
+      setDefinition(null);
+      setError(null);
+      
+      // If popover is already open, fetch the new definition
+      if (popoverOpen) {
+        fetchDefinition();
+      }
+    }
+  }, [word, popoverOpen, fetchDefinition]);
+  
   const handleOpenChange = async (open: boolean) => {
     setPopoverOpen(open);
     
