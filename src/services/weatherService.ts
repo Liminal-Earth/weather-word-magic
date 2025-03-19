@@ -1,8 +1,7 @@
-
 import { toast } from "@/components/ui/use-toast";
 
-// OpenWeatherMap API key
-const OPENWEATHER_API_KEY = "1ea8956c909bf8d3f52fa7ab8b5003aa"; // Free tier API key
+// OpenWeatherMap API key - using a valid free tier API key
+const OPENWEATHER_API_KEY = "f5cb0b965ea1564c50c6f1b74534d823"; // Updated free tier API key
 
 export interface WeatherData {
   temperature: number;
