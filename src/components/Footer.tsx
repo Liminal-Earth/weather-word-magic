@@ -12,7 +12,7 @@ const Footer = () => {
         <p>Definitions from <a href="https://dictionaryapi.dev/" className="hover:underline" target="_blank" rel="noreferrer">Dictionary API</a></p>
         <span className="hidden sm:inline">•</span>
         <a 
-          href="https://github.com/yourusername/weather-word-magic" 
+          href="https://github.com/Liminal-Earth/weather-word-magic" 
           target="_blank" 
           rel="noreferrer"
           className="flex items-center gap-1 hover:underline"
