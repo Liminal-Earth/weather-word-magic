@@ -5,7 +5,7 @@ const Footer = () => {
   return (
     <footer className="w-full py-4 text-center text-gray-500 text-sm mt-auto">
       <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
-        <p>Weather Word Magic &copy; {new Date().getFullYear()}</p>
+        <p>Weather Word &copy; {new Date().getFullYear()}</p>
         <span className="hidden sm:inline">•</span>
         <p>Weather data from <a href="https://open-meteo.com/" className="hover:underline" target="_blank" rel="noreferrer">Open-Meteo</a></p>
         <span className="hidden sm:inline">•</span>

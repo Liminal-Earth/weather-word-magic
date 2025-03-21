@@ -107,7 +107,7 @@ const Index = () => {
           <div className="flex justify-center items-center gap-2 mb-2">
             <CloudSun className="h-8 w-8 text-sky-dark" />
             <h1 className="text-3xl md:text-4xl font-serif font-bold text-gray-800">
-              Weather Word Magic
+              Weather Word
             </h1>
           </div>
           <p className="text-lg text-gray-600 max-w-xl mx-auto">
